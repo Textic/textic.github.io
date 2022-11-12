@@ -1,5 +1,8 @@
 [{
     "relation": ["delegate_permission/common.handle_all_urls"],
-    "target" : { "namespace": "android_app", "package_name": "com.tex.tellevoapp",
-                 "sha256_cert_fingerprints": ["5E:BC:AC:45:D6:AC:C3:B4:3B:D5:CF:40:55:93:D0:C1:81:11:D7:27:92:88:50:A0:F8:C8:EE:29:16:11:BB:69"] }
-  }]
+    "target" : {
+        "namespace": "android_app",
+        "package_name": "com.tex.tellevoapp",
+        "sha256_cert_fingerprints": ["5E:BC:AC:45:D6:AC:C3:B4:3B:D5:CF:40:55:93:D0:C1:81:11:D7:27:92:88:50:A0:F8:C8:EE:29:16:11:BB:69"]
+    }
+}]

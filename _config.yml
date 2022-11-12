@@ -1,14 +1,4 @@
 title: Textic Page
 description: Cayman is a clean, responsive theme for GitHub Pages.
 show_downloads: true
-google_analytics:
 theme: jekyll-theme-cayman
-github_repo: dada
-github_user: dodo
-github_button: true
-github_type: Watch
-github_count: true
-github_banner: true
-github_follow: true
-github_user: textic
-github_repo: textic.github.io

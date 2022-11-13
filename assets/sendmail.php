@@ -10,4 +10,3 @@ if(isset($_POST['username'])) {
 } else {
     error_log('no post params', 0);
 }
-}

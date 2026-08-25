@@ -1,31 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&family=Press+Start+2P&display=swap');
 
 :root {
-  --bg-main: #060713;
-  --bg-surface: rgba(13, 17, 39, 0.7);
-  --bg-surface-hover: rgba(22, 28, 61, 0.85);
-  --bg-card: rgba(16, 21, 48, 0.6);
+  --bg-main: #070608;
+  --bg-surface: rgba(18, 11, 16, 0.75);
+  --bg-surface-hover: rgba(28, 15, 24, 0.85);
+  --bg-card: rgba(20, 12, 18, 0.65);
   --border-color: rgba(255, 255, 255, 0.08);
-  --border-glow-cyan: rgba(0, 240, 255, 0.35);
-  --border-glow-pink: rgba(255, 0, 127, 0.35);
+  --border-glow-red: rgba(255, 30, 66, 0.4);
+  --border-glow-crimson: rgba(220, 20, 60, 0.3);
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #fdf8f9;
+  --text-secondary: #a89ba2;
+  --text-muted: #6e5e67;
   
-  --neon-pink: #ff007f;
-  --neon-cyan: #00f0ff;
-  --neon-purple: #9d4edd;
+  --neon-red: #ff1e42;
+  --neon-crimson: #ff003c;
+  --neon-darkred: #991b1b;
+  --neon-ruby: #e11d48;
+  --neon-orange: #f97316;
   --neon-green: #10b981;
   --neon-yellow: #f59e0b;
   
-  --gradient-pink: linear-gradient(135deg, #ff007f 0%, #a855f7 100%);
-  --gradient-cyan: linear-gradient(135deg, #00f0ff 0%, #3b82f6 100%);
+  /* Alias for components using previous neon vars */
+  --neon-pink: #ff1e42;
+  --neon-cyan: #ff2a55;
+  --neon-purple: #b91c1c;
+  
+  --gradient-red: linear-gradient(135deg, #ff1e42 0%, #991b1b 100%);
+  --gradient-crimson: linear-gradient(135deg, #ff003c 0%, #7f1d1d 100%);
+  --gradient-pink: linear-gradient(135deg, #ff1e42 0%, #881337 100%);
+  --gradient-cyan: linear-gradient(135deg, #ff2a55 0%, #991b1b 100%);
   --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
   
-  --shadow-cyan: 0 0 15px rgba(0, 240, 255, 0.25);
-  --shadow-pink: 0 0 15px rgba(255, 0, 127, 0.25);
-  --shadow-pink-strong: 0 0 30px rgba(255, 0, 127, 0.5);
+  --shadow-red: 0 0 16px rgba(255, 30, 66, 0.35);
+  --shadow-red-strong: 0 0 32px rgba(255, 0, 60, 0.6);
+  --shadow-cyan: 0 0 16px rgba(255, 30, 66, 0.35);
+  --shadow-pink: 0 0 16px rgba(255, 0, 60, 0.35);
+  --shadow-pink-strong: 0 0 32px rgba(255, 0, 60, 0.6);
   
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'Fira Code', monospace;
@@ -53,26 +64,26 @@ body {
   min-height: 100vh;
 }
 
-/* Background Ambient Orbs */
+/* Background Ambient Orbs (Dark Red & Crimson) */
 .orb {
   position: fixed;
-  width: 600px;
-  height: 600px;
+  width: 650px;
+  height: 650px;
   border-radius: 50%;
-  filter: blur(160px);
+  filter: blur(180px);
   z-index: -1;
   pointer-events: none;
-  opacity: 0.3;
+  opacity: 0.25;
 }
 
-.orb-pink {
-  background: radial-gradient(circle, rgba(255, 0, 127, 0.2) 0%, transparent 70%);
+.orb-pink, .orb-red {
+  background: radial-gradient(circle, rgba(255, 0, 60, 0.25) 0%, transparent 70%);
   top: -120px;
   left: -120px;
 }
 
-.orb-cyan {
-  background: radial-gradient(circle, rgba(0, 240, 255, 0.16) 0%, transparent 70%);
+.orb-cyan, .orb-crimson {
+  background: radial-gradient(circle, rgba(153, 27, 27, 0.25) 0%, transparent 70%);
   bottom: 5%;
   right: -200px;
 }
@@ -99,25 +110,14 @@ body {
   text-decoration: none;
 }
 
-.btn-pink {
-  background: var(--gradient-pink);
+.btn-pink, .btn-red, .btn-cyan {
+  background: var(--gradient-red);
   color: white;
-  box-shadow: 0 4px 15px rgba(255, 0, 127, 0.25);
+  box-shadow: 0 4px 15px rgba(255, 30, 66, 0.3);
 }
 
-.btn-pink:hover {
-  box-shadow: 0 4px 25px rgba(255, 0, 127, 0.5);
-  transform: translateY(-2px);
-}
-
-.btn-cyan {
-  background: var(--gradient-cyan);
-  color: white;
-  box-shadow: 0 4px 15px rgba(0, 240, 255, 0.25);
-}
-
-.btn-cyan:hover {
-  box-shadow: 0 4px 25px rgba(0, 240, 255, 0.5);
+.btn-pink:hover, .btn-red:hover, .btn-cyan:hover {
+  box-shadow: 0 4px 25px rgba(255, 0, 60, 0.6);
   transform: translateY(-2px);
 }
 
@@ -128,8 +128,8 @@ body {
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 30, 66, 0.08);
+  border-color: var(--border-glow-red);
   transform: translateY(-1px);
 }
 
@@ -154,9 +154,9 @@ body {
 }
 
 .btn-icon:hover {
-  background: rgba(0, 240, 255, 0.1);
-  color: var(--neon-cyan);
-  border-color: var(--neon-cyan);
+  background: rgba(255, 30, 66, 0.12);
+  color: var(--neon-red);
+  border-color: var(--neon-red);
 }
 
 /* Custom Scrollbars */
@@ -165,14 +165,14 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
 }
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--neon-cyan);
+  background: var(--neon-red);
 }
 
 /* Range input styling */
@@ -191,9 +191,9 @@ input[type=range]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--neon-cyan);
+  background: var(--neon-red);
   cursor: pointer;
-  box-shadow: var(--shadow-cyan);
+  box-shadow: var(--shadow-red);
   transition: var(--transition);
 }
 
@@ -206,7 +206,7 @@ input[type=range]::-webkit-slider-thumb:hover {
   width: 14px;
   height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top: 2px solid var(--neon-pink);
+  border-top: 2px solid var(--neon-red);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   display: inline-block;

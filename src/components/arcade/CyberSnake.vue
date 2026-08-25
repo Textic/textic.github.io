@@ -113,11 +113,11 @@ const draw = () => {
   if (!c) return
 
   // Canvas background
-  c.fillStyle = '#03040b'
+  c.fillStyle = '#070507'
   c.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE)
 
   // Retro grid
-  c.strokeStyle = 'rgba(255, 255, 255, 0.025)'
+  c.strokeStyle = 'rgba(255, 30, 66, 0.04)'
   c.lineWidth = 1
   for (let i = 0; i < CANVAS_SIZE; i += CELL_SIZE) {
     c.beginPath()
@@ -132,9 +132,9 @@ const draw = () => {
   }
 
   // Draw Food (glowing orb)
-  c.shadowBlur = 15
-  c.shadowColor = '#ff007f'
-  c.fillStyle = '#ff007f'
+  c.shadowBlur = 18
+  c.shadowColor = '#ff1e42'
+  c.fillStyle = '#ff1e42'
   c.beginPath()
   c.arc(food.x * CELL_SIZE + 10, food.y * CELL_SIZE + 10, 7, 0, Math.PI * 2)
   c.fill()
@@ -142,14 +142,14 @@ const draw = () => {
   // Draw Snake segments
   snake.forEach((seg, i) => {
     const isHead = i === 0
-    c.shadowBlur = isHead ? 15 : 0
-    c.shadowColor = '#00f0ff'
+    c.shadowBlur = isHead ? 18 : 0
+    c.shadowColor = '#ff1e42'
     
     if (isHead) {
-      c.fillStyle = '#00f0ff'
+      c.fillStyle = '#ff1e42'
     } else {
-      const alpha = 1 - (i / snake.length) * 0.7
-      c.fillStyle = `rgba(0, 240, 255, ${alpha})`
+      const alpha = 1 - (i / snake.length) * 0.75
+      c.fillStyle = `rgba(255, 30, 66, ${alpha})`
     }
 
     c.fillRect(seg.x * CELL_SIZE + 1, seg.y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2)

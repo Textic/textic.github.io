@@ -222,14 +222,14 @@ const selectItem = (id: ActiveViewId) => {
 
 .brand-icon {
   font-size: 1.6rem;
-  filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.5));
+  filter: drop-shadow(0 0 12px rgba(255, 30, 66, 0.6));
 }
 
 .brand-title {
   font-size: 1.2rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  background: var(--gradient-pink);
+  background: var(--gradient-red);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   line-height: 1.2;
@@ -259,9 +259,9 @@ const selectItem = (id: ActiveViewId) => {
 }
 
 .collapse-toggle-btn:hover {
-  color: var(--neon-cyan);
-  border-color: var(--neon-cyan);
-  background: rgba(0, 240, 255, 0.1);
+  color: var(--neon-red);
+  border-color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.12);
 }
 
 .sidebar-nav {
@@ -343,17 +343,17 @@ const selectItem = (id: ActiveViewId) => {
 }
 
 .nav-item-btn:hover {
-  background: rgba(0, 240, 255, 0.05);
+  background: rgba(255, 30, 66, 0.06);
   color: white;
-  border-color: rgba(0, 240, 255, 0.2);
+  border-color: rgba(255, 30, 66, 0.25);
   transform: translateX(2px);
 }
 
 .nav-item-btn.active {
-  background: rgba(0, 240, 255, 0.09);
+  background: rgba(255, 30, 66, 0.12);
   color: white;
-  border-color: var(--neon-cyan);
-  box-shadow: var(--shadow-cyan);
+  border-color: var(--neon-red);
+  box-shadow: var(--shadow-red);
   font-weight: 600;
 }
 

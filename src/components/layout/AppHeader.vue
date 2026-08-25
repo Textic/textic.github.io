@@ -42,10 +42,10 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   margin-bottom: 0.85rem;
-  background: linear-gradient(90deg, #ffffff 30%, #a855f7 70%, #ff007f 100%);
+  background: linear-gradient(90deg, #ffffff 30%, #ff1e42 70%, #991b1b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 40px rgba(255, 0, 127, 0.15);
+  text-shadow: 0 0 40px rgba(255, 30, 66, 0.25);
 }
 
 .subtitle {

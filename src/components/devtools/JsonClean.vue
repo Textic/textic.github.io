@@ -222,15 +222,16 @@ const stats = computed(() => {
 
 .json-textarea {
   width: 100%;
-  height: 200px;
+  height: 350px;
+  min-height: 260px;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 1rem;
+  padding: 1.1rem;
   color: #f1f5f9;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
-  line-height: 1.5;
+  font-size: 0.9rem;
+  line-height: 1.6;
   resize: vertical;
   transition: var(--transition);
 }

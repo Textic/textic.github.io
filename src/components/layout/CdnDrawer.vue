@@ -2,7 +2,16 @@
 import { ref, computed } from 'vue'
 import { useToast } from '@/composables/useToast'
 
-const isOpen = ref(false)
+const props = withDefaults(
+  defineProps<{
+    alwaysOpen?: boolean
+  }>(),
+  {
+    alwaysOpen: false
+  }
+)
+
+const isOpen = ref(props.alwaysOpen)
 const { copyToClipboard } = useToast()
 
 const baseUrl = computed(() => {
@@ -53,7 +62,7 @@ const copyEndpoint = (path: string) => {
 </script>
 
 <template>
-  <div class="cdn-drawer">
+  <div class="cdn-drawer" :class="{ 'full-page-mode': alwaysOpen }">
     <div class="cdn-header" @click="isOpen = !isOpen">
       <div class="cdn-title">
         <span class="title-icon">📡</span>
@@ -123,6 +132,10 @@ const copyEndpoint = (path: string) => {
   padding: 1.5rem 1.75rem;
   backdrop-filter: blur(16px);
   transition: var(--transition);
+}
+
+.cdn-drawer.full-page-mode {
+  margin-top: 0;
 }
 
 .cdn-header {

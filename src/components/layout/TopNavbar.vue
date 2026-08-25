@@ -1,0 +1,201 @@
+<script setup lang="ts">
+import type { ActiveViewId } from './AppSidebar.vue'
+
+defineProps<{
+  activeView: ActiveViewId
+}>()
+
+const emit = defineEmits<{
+  (e: 'toggle-mobile-sidebar'): void
+  (e: 'open-cdn'): void
+}>()
+
+const getViewMetadata = (id: ActiveViewId) => {
+  switch (id) {
+    case 'arcade-snake':
+      return { category: 'Arcade Games', title: 'Cyber Snake', icon: '🐍', tag: 'CANVAS MACHINE' }
+    case 'arcade-typing':
+      return { category: 'Arcade Games', title: 'Typing Blitz', icon: '⌨️', tag: 'SPEED CHALLENGE' }
+    case 'dev-passfort':
+      return { category: 'Dev Utilities', title: 'PassFort Generator', icon: '🔐', tag: 'ENTROPY SECURITY' }
+    case 'dev-json':
+      return { category: 'Dev Utilities', title: 'JSON Clean Formatter', icon: '💎', tag: 'VALIDATOR & MINIFIER' }
+    case 'links-tools':
+      return { category: 'Recursos', title: 'Useful Developer Tools', icon: '🔗', tag: 'DIRECTORY' }
+    case 'cdn-endpoints':
+      return { category: 'Recursos', title: 'CDN & Static Asset Endpoints', icon: '📡', tag: 'PUBLIC REPO API' }
+  }
+}
+</script>
+
+<template>
+  <header class="top-navbar">
+    <div class="navbar-left">
+      <!-- Mobile hamburger trigger -->
+      <button 
+        class="mobile-menu-btn mobile-only" 
+        title="Abrir menú de navegación"
+        @click="emit('toggle-mobile-sidebar')"
+      >
+        <span>☰</span>
+      </button>
+
+      <!-- Active Tool Breadcrumb -->
+      <div class="breadcrumb-box">
+        <span class="breadcrumb-cat">{{ getViewMetadata(activeView).category }}</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-item">
+          <span class="item-icon">{{ getViewMetadata(activeView).icon }}</span>
+          <span class="item-title">{{ getViewMetadata(activeView).title }}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="navbar-right">
+      <span class="active-badge">{{ getViewMetadata(activeView).tag }}</span>
+      
+      <button 
+        v-if="activeView !== 'cdn-endpoints'"
+        class="btn btn-secondary btn-cdn-quick"
+        title="Ver endpoints de archivos estáticos"
+        @click="emit('open-cdn')"
+      >
+        <span>📡</span>
+        <span class="desktop-label">CDN Files</span>
+      </button>
+
+      <a 
+        href="https://github.com/Textic/textic.github.io" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        class="btn-icon github-btn"
+        title="Ver código fuente en GitHub"
+      >
+        🐙
+      </a>
+    </div>
+  </header>
+</template>
+
+<style scoped>
+.top-navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(10, 14, 34, 0.7);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(16px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  min-height: 72px;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mobile-menu-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: white;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.mobile-menu-btn:hover {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--neon-cyan);
+}
+
+.breadcrumb-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.breadcrumb-cat {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: rgba(255, 255, 255, 0.15);
+  font-size: 0.8rem;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: white;
+  font-weight: 700;
+}
+
+.item-icon {
+  font-size: 1.1rem;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.active-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+}
+
+.btn-cdn-quick {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+}
+
+.github-btn {
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .mobile-only {
+    display: flex;
+  }
+  
+  .desktop-label {
+    display: none;
+  }
+
+  .active-badge {
+    display: none;
+  }
+
+  .top-navbar {
+    padding: 0.85rem 1rem;
+  }
+}
+</style>

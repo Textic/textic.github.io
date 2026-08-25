@@ -59,17 +59,17 @@ const tabs: Array<{ id: TabId; label: string; icon: string }> = [
 
 .nav-btn:hover {
   color: white;
-  border-color: var(--border-glow-cyan);
-  box-shadow: var(--shadow-cyan);
-  background: rgba(0, 240, 255, 0.05);
+  border-color: var(--border-glow-red);
+  box-shadow: var(--shadow-red);
+  background: rgba(255, 30, 66, 0.08);
   transform: translateY(-1px);
 }
 
 .nav-btn.active {
   color: white;
-  border-color: var(--neon-pink);
-  box-shadow: var(--shadow-pink);
-  background: rgba(255, 0, 127, 0.1);
+  border-color: var(--neon-red);
+  box-shadow: var(--shadow-red);
+  background: rgba(255, 30, 66, 0.12);
 }
 
 .nav-btn-icon {

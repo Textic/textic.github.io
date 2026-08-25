@@ -38,12 +38,12 @@ const { toasts } = useToast()
 
 .toast-item {
   pointer-events: auto;
-  background: rgba(13, 17, 39, 0.95);
-  border: 1px solid var(--neon-cyan);
+  background: rgba(18, 10, 15, 0.96);
+  border: 1px solid var(--neon-red);
   color: white;
   padding: 0.85rem 1.4rem;
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-cyan), 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-red), 0 10px 30px rgba(0, 0, 0, 0.6);
   font-size: 0.9rem;
   font-weight: 500;
   display: flex;
@@ -53,8 +53,8 @@ const { toasts } = useToast()
 }
 
 .toast-error {
-  border-color: var(--neon-pink);
-  box-shadow: var(--shadow-pink), 0 10px 30px rgba(0, 0, 0, 0.6);
+  border-color: #ef4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.4), 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
 .toast-icon {
@@ -64,15 +64,15 @@ const { toasts } = useToast()
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(0, 240, 255, 0.15);
-  color: var(--neon-cyan);
+  background: rgba(255, 30, 66, 0.15);
+  color: var(--neon-red);
   font-size: 0.75rem;
   font-weight: 700;
 }
 
 .toast-error .toast-icon {
-  background: rgba(255, 0, 127, 0.15);
-  color: var(--neon-pink);
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
 /* Animations */

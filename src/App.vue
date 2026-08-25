@@ -113,11 +113,11 @@ const isMobileOpen = ref(false)
 <style scoped>
 .dashboard-layout {
   display: flex;
-  min-height: 100vh;
-  width: 100%;
+  height: 100vh;
+  width: 100vw;
   position: relative;
   background-color: var(--bg-main);
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 .workspace-container {
@@ -125,7 +125,9 @@ const isMobileOpen = ref(false)
   display: flex;
   flex-direction: column;
   min-width: 0; /* Prevents overflow issues in flexbox */
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .workspace-body {
@@ -167,6 +169,7 @@ const isMobileOpen = ref(false)
 }
 
 .workspace-footer {
+  margin-top: auto;
   padding: 1.5rem 2.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
@@ -174,7 +177,7 @@ const isMobileOpen = ref(false)
   align-items: center;
   font-size: 0.8rem;
   color: var(--text-muted);
-  background: rgba(10, 14, 34, 0.4);
+  background: rgba(14, 8, 12, 0.85);
 }
 
 .footer-left {
@@ -204,7 +207,7 @@ const isMobileOpen = ref(false)
 }
 
 .footer-right a:hover {
-  color: var(--neon-cyan);
+  color: var(--neon-red);
 }
 
 /* Transitions */

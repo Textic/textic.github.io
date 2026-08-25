@@ -85,7 +85,7 @@ const getViewMetadata = (id: ActiveViewId) => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background: rgba(10, 14, 34, 0.7);
+  background: rgba(14, 8, 12, 0.85);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(16px);
   position: sticky;

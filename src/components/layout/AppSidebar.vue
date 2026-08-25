@@ -185,15 +185,15 @@ const selectItem = (id: ActiveViewId) => {
 .app-sidebar {
   width: 270px;
   min-width: 270px;
-  background: rgba(10, 14, 34, 0.95);
+  background: rgba(14, 8, 12, 0.98);
   border-right: 1px solid var(--border-color);
   backdrop-filter: blur(20px);
   display: flex;
   flex-direction: column;
   height: 100vh;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 100;
+  flex-shrink: 0;
   transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-y: auto;
   overflow-x: hidden;

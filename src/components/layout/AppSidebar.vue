@@ -6,6 +6,7 @@ export type ActiveViewId =
   | 'arcade-typing' 
   | 'dev-passfort' 
   | 'dev-json' 
+  | 'dev-cipher'
   | 'links-tools' 
   | 'cdn-endpoints'
 
@@ -51,6 +52,7 @@ const categories = ref<NavCategory[]>([
     icon: '🛠️',
     isOpen: true,
     items: [
+      { id: 'dev-cipher', label: 'CipherLab (Encoder)', icon: '⚡', badge: 'CRYPTO' },
       { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' }
     ]

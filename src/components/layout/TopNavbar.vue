@@ -20,6 +20,8 @@ const getViewMetadata = (id: ActiveViewId) => {
       return { category: 'Dev Utilities', title: 'PassFort Generator', icon: '🔐', tag: 'ENTROPY SECURITY' }
     case 'dev-json':
       return { category: 'Dev Utilities', title: 'JSON Clean Formatter', icon: '💎', tag: 'VALIDATOR & MINIFIER' }
+    case 'dev-cipher':
+      return { category: 'Dev Utilities', title: 'CipherLab (Encoder & Decoder)', icon: '⚡', tag: 'MULTI-CIPHER' }
     case 'links-tools':
       return { category: 'Recursos', title: 'Useful Developer Tools', icon: '🔗', tag: 'DIRECTORY' }
     case 'cdn-endpoints':

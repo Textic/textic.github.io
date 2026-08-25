@@ -5,6 +5,7 @@ import TopNavbar from '@/components/layout/TopNavbar.vue'
 import ToastContainer from '@/components/layout/ToastContainer.vue'
 import PassFort from '@/components/devtools/PassFort.vue'
 import JsonClean from '@/components/devtools/JsonClean.vue'
+import CipherLab from '@/components/devtools/CipherLab.vue'
 import CyberSnake from '@/components/arcade/CyberSnake.vue'
 import TypingBlitz from '@/components/arcade/TypingBlitz.vue'
 import UsefulLinks from '@/components/links/UsefulLinks.vue'
@@ -55,14 +56,19 @@ const isMobileOpen = ref(false)
             </div>
           </div>
 
-          <!-- 3. PassFort Password Generator -->
+          <!-- 3. CipherLab Multi-Format Encoder / Decoder -->
+          <div v-else-if="activeView === 'dev-cipher'" key="cipher" class="view-wrapper">
+            <CipherLab />
+          </div>
+
+          <!-- 4. PassFort Password Generator -->
           <div v-else-if="activeView === 'dev-passfort'" key="passfort" class="view-wrapper">
             <div class="tool-max-width">
               <PassFort />
             </div>
           </div>
 
-          <!-- 4. JSON Clean Formatter -->
+          <!-- 5. JSON Clean Formatter -->
           <div v-else-if="activeView === 'dev-json'" key="json" class="view-wrapper">
             <div class="tool-max-width">
               <JsonClean />

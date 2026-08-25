@@ -11,7 +11,7 @@ import TypingBlitz from '@/components/arcade/TypingBlitz.vue'
 import UsefulLinks from '@/components/links/UsefulLinks.vue'
 import CdnDrawer from '@/components/layout/CdnDrawer.vue'
 
-const activeView = ref<ActiveViewId>('arcade-snake')
+const activeView = ref<ActiveViewId>('arcade-typing')
 const isCollapsed = ref(false)
 const isMobileOpen = ref(false)
 </script>

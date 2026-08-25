@@ -1,451 +1,934 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useToast } from '@/composables/useToast'
 
 const { showToast } = useToast()
 
-const DEFAULT_WORDS = [
-  "antigravity", "javascript", "developer", "keyboard", "cyberpunk", 
-  "synthwave", "retrogaming", "canvas", "async", "variable", 
-  "function", "stylesheet", "database", "payload", "connection", 
-  "algorithm", "responsive", "terminal", "console", "programming",
-  "interface", "application", "repository", "animation", "component",
-  "typescript", "framework", "performance", "deployment", "pipeline"
-]
+type Mode = 'words' | 'quotes' | 'time'
+type Language = 'en' | 'es'
 
-const wordPool = ref<string[]>([...DEFAULT_WORDS])
-const currentWord = ref('start')
-const userInput = ref('')
+const mode = ref<Mode>('quotes')
+const language = ref<Language>('en')
+const wordCountOption = ref<number>(25)
+const timeLimitOption = ref<number>(60)
+const selectedQuoteIndex = ref<number>(0)
+
+// Game State
+const fullText = ref('')
+const currentInput = ref('')
 const isRunning = ref(false)
-const isGameOver = ref(false)
-const gameStarted = ref(false)
-const timeLeft = ref(60)
-const correctWordsCount = ref(0)
-const totalCharsTyped = ref(0)
-const correctCharsTyped = ref(0)
-const isDictionaryLoaded = ref(false)
-const isLoadingDictionary = ref(false)
+const isFinished = ref(false)
+const startTime = ref<number | null>(null)
+const endTime = ref<number | null>(null)
+const timer = ref<number | null>(null)
+const timeRemaining = ref<number>(60)
+const activeAuthor = ref<string>('')
+const activeTitle = ref<string>('')
+
+// Statistics tracking
+const totalKeystrokes = ref(0)
+const errorKeystrokes = ref(0)
 
 const inputRef = ref<HTMLInputElement | null>(null)
-let timer: number | null = null
+const displayAreaRef = ref<HTMLDivElement | null>(null)
 
-onUnmounted(() => {
-  stopGame()
-})
+// --- Preset Quotes & Poems Library ---
+interface QuoteItem {
+  title: string
+  author: string
+  text: string
+}
 
-const accuracy = computed(() => {
-  if (totalCharsTyped.value === 0) return 100
-  let progressCorrect = correctCharsTyped.value
-  for (let i = 0; i < userInput.value.length; i++) {
-    if (userInput.value[i] === currentWord.value[i]) {
-      progressCorrect++
+const QUOTES_EN: QuoteItem[] = [
+  {
+    title: "The Road Not Taken",
+    author: "Robert Frost",
+    text: "Two roads diverged in a yellow wood, and sorry I could not travel both and be one traveler, long I stood and looked down one as far as I could to where it bent in the undergrowth."
+  },
+  {
+    title: "Sonnet 18",
+    author: "William Shakespeare",
+    text: "Shall I compare thee to a summer's day? Thou art more lovely and more temperate. Rough winds do shake the darling buds of May, and summer's lease hath all too short a date."
+  },
+  {
+    title: "The Raven",
+    author: "Edgar Allan Poe",
+    text: "Once upon a midnight dreary, while I pondered, weak and weary, over many a quaint and curious volume of forgotten lore, while I nodded, nearly napping, suddenly there came a tapping."
+  },
+  {
+    title: "Philosophy of Code",
+    author: "Linus Torvalds",
+    text: "Talk is cheap. Show me the code. Software is like sex: it is better when it is free. Most good programmers do programming not because they expect to get paid, but because it is fun."
+  },
+  {
+    title: "Stay Hungry, Stay Foolish",
+    author: "Steve Jobs",
+    text: "Your time is limited, so don't waste it living someone else's life. Don't be trapped by dogma, which is living with the results of other people's thinking. Have the courage to follow your heart."
+  },
+  {
+    title: "Computing Machinery",
+    author: "Alan Turing",
+    text: "We can only see a short distance ahead, but we can see plenty there that needs to be done. A computer would deserve to be called intelligent if it could deceive a human into believing that it was human."
+  }
+]
+
+const QUOTES_ES: QuoteItem[] = [
+  {
+    title: "Don Quijote de la Mancha",
+    author: "Miguel de Cervantes",
+    text: "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor."
+  },
+  {
+    title: "Poema 20",
+    author: "Pablo Neruda",
+    text: "Puedo escribir los versos más tristes esta noche. Escribir, por ejemplo: La noche está estrellada, y tiritan, azules, los astros, a lo lejos. El viento de la noche gira en el cielo y canta."
+  },
+  {
+    title: "El Aleph",
+    author: "Jorge Luis Borges",
+    text: "Vi el populoso mar, vi el alba y la tarde, vi las muchedumbres de América, vi una plateada telaraña en el centro de una negra pirámide, vi un laberinto roto que era Londres, vi interminables ojos inmediatos."
+  },
+  {
+    title: "Rima XXI",
+    author: "Gustavo Adolfo Bécquer",
+    text: "¿Qué es poesía?, dices mientras clavas en mi pupila tu pupila azul. ¿Qué es poesía? ¿Y tú me lo preguntas? Poesía... eres tú."
+  },
+  {
+    title: "Romance Sonámbulo",
+    author: "Federico García Lorca",
+    text: "Verde que te quiero verde. Verde viento. Verdes ramas. El barco sobre la mar y el caballo en la montaña. Con la sombra en la cintura ella sueña en su baranda, verde carne, pelo verde, con ojos de fría plata."
+  },
+  {
+    title: "Cien años de soledad",
+    author: "Gabriel García Márquez",
+    text: "Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo."
+  }
+]
+
+// --- Base Dictionary Pools for Random Words Mode ---
+const BASE_WORDS_EN = [
+  "the", "be", "to", "of", "and", "a", "in", "that", "have", "it",
+  "for", "not", "on", "with", "he", "as", "you", "do", "at", "this",
+  "but", "his", "by", "from", "they", "we", "say", "her", "she", "or",
+  "will", "an", "my", "one", "all", "would", "there", "their", "what",
+  "so", "up", "out", "if", "about", "who", "get", "which", "go", "me",
+  "when", "make", "can", "like", "time", "no", "just", "him", "know",
+  "take", "people", "into", "year", "your", "good", "some", "could",
+  "them", "see", "other", "than", "then", "now", "look", "only", "come",
+  "its", "over", "think", "also", "back", "after", "use", "two", "how",
+  "our", "work", "first", "well", "way", "even", "new", "want", "because",
+  "any", "these", "give", "day", "most", "us", "system", "code", "cyber",
+  "matrix", "server", "future", "network", "signal", "digital", "terminal"
+]
+
+const BASE_WORDS_ES = [
+  "de", "la", "que", "el", "en", "y", "a", "los", "se", "del", "las",
+  "un", "por", "con", "no", "una", "su", "para", "es", "al", "lo", "como",
+  "mas", "o", "pero", "sus", "le", "ha", "me", "si", "sin", "sobre",
+  "este", "ya", "entre", "cuando", "todo", "esta", "ser", "son", "dos",
+  "tambien", "fue", "habia", "era", "muy", "anos", "hasta", "desde",
+  "esta", "mi", "porque", "cada", "vida", "tiempo", "mundo", "dia",
+  "donde", "despues", "te", "algo", "noche", "ciudad", "hombre", "casa",
+  "cielo", "camino", "mano", "palabra", "luz", "codigo", "sistema", "red",
+  "pantalla", "futuro", "juego", "terminal", "desarrollo", "servidor"
+]
+
+// Extra Spanish words dynamically fetched
+const extraSpanishWords = ref<string[]>([])
+const isDictLoading = ref(false)
+
+const loadFullSpanishDictionary = async () => {
+  if (extraSpanishWords.value.length > 0 || isDictLoading.value) return
+  isDictLoading.value = true
+  try {
+    const res = await fetch('/assets/dictionary.json')
+    if (!res.ok) return
+    const data = await res.json()
+    if (data && Array.isArray(data.spanish)) {
+      extraSpanishWords.value = data.spanish
+        .filter((w: string) => w.length >= 3 && w.length <= 9 && !w.includes(' '))
+        .map((w: string) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())
+    }
+  } catch (e) {
+    console.error("Dictionary load error:", e)
+  } finally {
+    isDictLoading.value = false
+  }
+}
+
+// Generate text based on active mode & language
+const generateTestText = () => {
+  if (mode.value === 'quotes') {
+    const list = language.value === 'en' ? QUOTES_EN : QUOTES_ES
+    const item = list[selectedQuoteIndex.value % list.length] ?? list[0]
+    if (item) {
+      fullText.value = item.text
+      activeTitle.value = item.title
+      activeAuthor.value = item.author
+    }
+  } else if (mode.value === 'words') {
+    activeTitle.value = `${wordCountOption.value} Words`
+    activeAuthor.value = language.value === 'en' ? 'Random English Words' : 'Palabras Aleatorias'
+    const pool = language.value === 'en' 
+      ? BASE_WORDS_EN 
+      : (extraSpanishWords.value.length > 0 ? extraSpanishWords.value : BASE_WORDS_ES)
+    
+    const words: string[] = []
+    for (let i = 0; i < wordCountOption.value; i++) {
+      const rand = pool[Math.floor(Math.random() * pool.length)] ?? 'code'
+      words.push(rand)
+    }
+    fullText.value = words.join(' ')
+  } else if (mode.value === 'time') {
+    activeTitle.value = `${timeLimitOption.value}s Speed Rush`
+    activeAuthor.value = language.value === 'en' ? 'Continuous Stream' : 'Flujo Continuo'
+    const pool = language.value === 'en' 
+      ? BASE_WORDS_EN 
+      : (extraSpanishWords.value.length > 0 ? extraSpanishWords.value : BASE_WORDS_ES)
+    
+    const words: string[] = []
+    for (let i = 0; i < 150; i++) {
+      const rand = pool[Math.floor(Math.random() * pool.length)] ?? 'code'
+      words.push(rand)
+    }
+    fullText.value = words.join(' ')
+  }
+}
+
+const resetTest = () => {
+  stopTimer()
+  currentInput.value = ''
+  isRunning.value = false
+  isFinished.value = false
+  startTime.value = null
+  endTime.value = null
+  totalKeystrokes.value = 0
+  errorKeystrokes.value = 0
+  timeRemaining.value = timeLimitOption.value
+  generateTestText()
+  
+  nextTick(() => {
+    if (inputRef.value) {
+      inputRef.value.focus()
+    }
+  })
+}
+
+const selectQuote = (index: number) => {
+  selectedQuoteIndex.value = index
+  resetTest()
+}
+
+const setMode = (newMode: Mode) => {
+  mode.value = newMode
+  resetTest()
+}
+
+const setLanguage = (newLang: Language) => {
+  language.value = newLang
+  if (newLang === 'es') {
+    loadFullSpanishDictionary()
+  }
+  resetTest()
+}
+
+const setWordCount = (count: number) => {
+  wordCountOption.value = count
+  resetTest()
+}
+
+const setTimeLimit = (seconds: number) => {
+  timeLimitOption.value = seconds
+  resetTest()
+}
+
+// Live Typing Handler
+const handleKeyInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const val = target.value
+
+  if (!isRunning.value && !isFinished.value && val.length > 0) {
+    startTest()
+  }
+
+  // Check last typed character correctness
+  if (val.length > currentInput.value.length) {
+    totalKeystrokes.value++
+    const lastIndex = val.length - 1
+    if (val[lastIndex] !== fullText.value[lastIndex]) {
+      errorKeystrokes.value++
     }
   }
-  const acc = Math.round((progressCorrect / totalCharsTyped.value) * 100)
-  return Math.min(100, Math.max(0, acc))
+
+  currentInput.value = val
+
+  // Complete test if typed all text in quotes or words mode
+  if (mode.value !== 'time' && val.length >= fullText.value.length) {
+    finishTest()
+  }
+}
+
+const startTest = () => {
+  isRunning.value = true
+  startTime.value = Date.now()
+
+  if (mode.value === 'time') {
+    timeRemaining.value = timeLimitOption.value
+    timer.value = window.setInterval(() => {
+      timeRemaining.value--
+      if (timeRemaining.value <= 0) {
+        finishTest()
+      }
+    }, 1000)
+  }
+}
+
+const stopTimer = () => {
+  if (timer.value) {
+    clearInterval(timer.value)
+    timer.value = null
+  }
+}
+
+const finishTest = () => {
+  stopTimer()
+  isRunning.value = false
+  isFinished.value = true
+  endTime.value = Date.now()
+}
+
+// Live Calculations
+const elapsedMinutes = computed(() => {
+  if (!startTime.value) return 0
+  const end = endTime.value || Date.now()
+  return (end - startTime.value) / 60000
+})
+
+const correctCharsCount = computed(() => {
+  let correct = 0
+  const input = currentInput.value
+  const target = fullText.value
+  for (let i = 0; i < input.length; i++) {
+    if (input[i] === target[i]) {
+      correct++
+    }
+  }
+  return correct
 })
 
 const wpm = computed(() => {
-  const elapsedMinutes = (60 - timeLeft.value) / 60
-  if (elapsedMinutes <= 0) return 0
-  return Math.round(correctWordsCount.value / elapsedMinutes)
+  if (elapsedMinutes.value <= 0) return 0
+  const wordsTyped = correctCharsCount.value / 5
+  return Math.max(0, Math.round(wordsTyped / elapsedMinutes.value))
 })
 
-const nextWord = () => {
-  const pool = wordPool.value
-  const idx = Math.floor(Math.random() * pool.length)
-  currentWord.value = pool[idx] ?? DEFAULT_WORDS[0] ?? 'cyberpunk'
-  userInput.value = ''
-}
+const accuracy = computed(() => {
+  if (currentInput.value.length === 0) return 100
+  const acc = (correctCharsCount.value / currentInput.value.length) * 100
+  return Math.min(100, Math.max(0, Math.round(acc)))
+})
 
-const handleInput = () => {
-  if (!isRunning.value) return
-
-  totalCharsTyped.value++
-  const val = userInput.value
-
-  if (val === currentWord.value) {
-    correctWordsCount.value++
-    correctCharsTyped.value += currentWord.value.length
-    nextWord()
+const progressPercentage = computed(() => {
+  if (mode.value === 'time') {
+    return Math.max(0, Math.round(((timeLimitOption.value - timeRemaining.value) / timeLimitOption.value) * 100))
   }
-}
+  if (!fullText.value.length) return 0
+  return Math.min(100, Math.round((currentInput.value.length / fullText.value.length) * 100))
+})
 
-const startGame = async () => {
-  stopGame()
-  timeLeft.value = 60
-  correctWordsCount.value = 0
-  totalCharsTyped.value = 0
-  correctCharsTyped.value = 0
-  isGameOver.value = false
-  isRunning.value = true
-  gameStarted.value = true
-
-  nextWord()
-
-  await nextTick()
+const focusInput = () => {
   if (inputRef.value) {
     inputRef.value.focus()
   }
-
-  timer = window.setInterval(() => {
-    timeLeft.value--
-    if (timeLeft.value <= 0) {
-      triggerGameOver()
-    }
-  }, 1000)
 }
 
-const stopGame = () => {
-  isRunning.value = false
-  if (timer) {
-    clearInterval(timer)
-    timer = null
-  }
-}
+watch([mode, language, wordCountOption, timeLimitOption], () => {
+  resetTest()
+})
 
-const triggerGameOver = () => {
-  stopGame()
-  isGameOver.value = true
-  isRunning.value = false
-}
+onMounted(() => {
+  resetTest()
+  window.addEventListener('keydown', handleGlobalKey)
+})
 
-const loadSpanishDictionary = async () => {
-  if (isDictionaryLoaded.value || isLoadingDictionary.value) return
+onUnmounted(() => {
+  stopTimer()
+  window.removeEventListener('keydown', handleGlobalKey)
+})
 
-  isLoadingDictionary.value = true
-  try {
-    const res = await fetch('/assets/dictionary.json')
-    if (!res.ok) throw new Error('Could not download dictionary')
-    const data = await res.json()
-
-    if (data && Array.isArray(data.spanish)) {
-      wordPool.value = data.spanish
-        .filter((w: string) => w.length > 3 && w.length < 11)
-        .map((w: string) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())
-      
-      isDictionaryLoaded.value = true
-      showToast(`Spanish dictionary loaded (${wordPool.value.length.toLocaleString()} words)!`)
-    }
-  } catch (err) {
-    console.error(err)
-    showToast('Error loading Spanish dictionary', 'error')
-  } finally {
-    isLoadingDictionary.value = false
+const handleGlobalKey = (e: KeyboardEvent) => {
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    resetTest()
   }
 }
 </script>
 
 <template>
-  <div class="typing-cabinet">
-    <div class="typing-display-box">
-      <!-- Overlay: Start screen -->
-      <div v-if="!gameStarted" class="overlay-screen">
-        <div class="overlay-badge">SPEED CHALLENGE</div>
-        <h3 class="overlay-title">TYPING BLITZ</h3>
-        <p class="overlay-desc">
-          Type as many words as you can in 60 seconds while maintaining high accuracy.
-        </p>
-        <button class="btn btn-red" @click="startGame">
-          <span>⚡</span> Start Blitz
-        </button>
-      </div>
-
-      <!-- Overlay: Game Over -->
-      <div v-else-if="isGameOver" class="overlay-screen gameover">
-        <h3 class="overlay-title gameover-title">TIME'S UP</h3>
-        <p class="overlay-desc">Your session statistics:</p>
-        <div class="results-grid">
-          <div class="result-card">
-            <span class="result-label">SPEED</span>
-            <span class="result-val red">{{ wpm }} <small>WPM</small></span>
-          </div>
-          <div class="result-card">
-            <span class="result-label">ACCURACY</span>
-            <span class="result-val">{{ accuracy }}%</span>
-          </div>
-          <div class="result-card">
-            <span class="result-label">WORDS</span>
-            <span class="result-val">{{ correctWordsCount }}</span>
+  <div class="blitz-container" @click="focusInput">
+    <!-- Top Configuration Control Bar -->
+    <div class="control-header-card">
+      <div class="header-main-row">
+        <!-- Title and Icon -->
+        <div class="blitz-brand">
+          <span class="blitz-icon">⌨️</span>
+          <div>
+            <h2 class="blitz-title">Typing Blitz Pro</h2>
+            <p class="blitz-desc">Speed typing trainer with customizable literature, words, and timed challenges.</p>
           </div>
         </div>
-        <button class="btn btn-red" @click="startGame">
-          <span>🔄</span> Retry Blitz
-        </button>
+
+        <!-- Language Switcher (EN / ES) -->
+        <div class="config-pill-group language-switch">
+          <button 
+            class="config-pill-btn" 
+            :class="{ active: language === 'en' }"
+            @click.stop="setLanguage('en')"
+          >
+            🇺🇸 English
+          </button>
+          <button 
+            class="config-pill-btn" 
+            :class="{ active: language === 'es' }"
+            @click.stop="setLanguage('es')"
+          >
+            🇪🇸 Español
+          </button>
+        </div>
       </div>
 
-      <!-- Target Word with dynamic character feedback -->
-      <div class="word-stage">
-        <div class="target-word">
-          <span
-            v-for="(char, idx) in currentWord"
-            :key="idx"
-            :class="{
-              'char-correct': idx < userInput.length && userInput[idx] === char,
-              'char-wrong': idx < userInput.length && userInput[idx] !== char
-            }"
-          >{{ char }}</span>
+      <!-- Secondary Controls Bar: Mode selector & Sub-options -->
+      <div class="modes-toolbar">
+        <div class="config-pill-group mode-group">
+          <button 
+            class="config-pill-btn" 
+            :class="{ active: mode === 'quotes' }"
+            @click.stop="setMode('quotes')"
+          >
+            📜 Quotes & Poems
+          </button>
+          <button 
+            class="config-pill-btn" 
+            :class="{ active: mode === 'words' }"
+            @click.stop="setMode('words')"
+          >
+            🔢 Words
+          </button>
+          <button 
+            class="config-pill-btn" 
+            :class="{ active: mode === 'time' }"
+            @click.stop="setMode('time')"
+          >
+            ⏱️ Timed Rush
+          </button>
+        </div>
+
+        <!-- Sub-Options: Word Count Selector -->
+        <div v-if="mode === 'words'" class="config-pill-group sub-options">
+          <span class="sub-label">Count:</span>
+          <button 
+            v-for="count in [10, 25, 50, 100]" 
+            :key="count"
+            class="config-pill-btn sub-pill"
+            :class="{ active: wordCountOption === count }"
+            @click.stop="setWordCount(count)"
+          >
+            {{ count }}
+          </button>
+        </div>
+
+        <!-- Sub-Options: Time Limit Selector -->
+        <div v-else-if="mode === 'time'" class="config-pill-group sub-options">
+          <span class="sub-label">Time:</span>
+          <button 
+            v-for="secs in [15, 30, 60, 120]" 
+            :key="secs"
+            class="config-pill-btn sub-pill"
+            :class="{ active: timeLimitOption === secs }"
+            @click.stop="setTimeLimit(secs)"
+          >
+            {{ secs }}s
+          </button>
+        </div>
+
+        <!-- Sub-Options: Quote / Poem Selector Dropdown -->
+        <div v-else-if="mode === 'quotes'" class="quotes-selector-box">
+          <span class="sub-label">Passage:</span>
+          <select 
+            :value="selectedQuoteIndex" 
+            class="quote-dropdown"
+            @change="selectQuote(Number(($event.target as HTMLSelectElement).value))"
+          >
+            <option 
+              v-for="(q, idx) in (language === 'en' ? QUOTES_EN : QUOTES_ES)" 
+              :key="idx" 
+              :value="idx"
+            >
+              {{ q.title }} ({{ q.author }})
+            </option>
+          </select>
         </div>
       </div>
     </div>
 
-    <!-- Input text control -->
-    <div class="input-wrapper">
+    <!-- Live Stats Bar (Above stage) -->
+    <div class="stats-counter-bar">
+      <div class="stat-item">
+        <span class="stat-meta">SPEED</span>
+        <span class="stat-digit red">{{ wpm }} <small>WPM</small></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-meta">ACCURACY</span>
+        <span class="stat-digit green">{{ accuracy }}%</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-meta">{{ mode === 'time' ? 'TIME LEFT' : 'PROGRESS' }}</span>
+        <span class="stat-digit">
+          {{ mode === 'time' ? `${timeRemaining}s` : `${progressPercentage}%` }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Interactive Typing Stage (Dark Background with Green / Red Character Feedback) -->
+    <div class="typing-stage-card" :class="{ finished: isFinished }">
+      <!-- Author / Title Header Badge -->
+      <div class="stage-meta-header">
+        <span class="passage-tag">{{ activeTitle }}</span>
+        <span class="passage-author">{{ activeAuthor }}</span>
+        <span class="keyboard-hint">Press <kbd>Tab</kbd> to restart</span>
+      </div>
+
+      <!-- Hidden Input Field that catches user keyboard typing -->
       <input
         ref="inputRef"
-        v-model="userInput"
+        :value="currentInput"
         type="text"
-        class="typing-input"
-        placeholder="Type the word above..."
-        :disabled="!isRunning"
+        class="hidden-typing-input"
         autocomplete="off"
         autocorrect="off"
         autocapitalize="off"
         spellcheck="false"
-        @input="handleInput"
+        :disabled="isFinished"
+        @input="handleKeyInput"
       />
-    </div>
 
-    <!-- Live Stats Grid -->
-    <div class="stats-row">
-      <div class="stat-box">
-        <span class="stat-title">Speed</span>
-        <span class="stat-number red">{{ wpm }} <span class="stat-unit">WPM</span></span>
+      <!-- Multi-line Flowing Character Display Stage -->
+      <div ref="displayAreaRef" class="text-display-box">
+        <span
+          v-for="(char, idx) in fullText"
+          :key="idx"
+          class="stage-char"
+          :class="{
+            'char-correct': idx < currentInput.length && currentInput[idx] === char,
+            'char-wrong': idx < currentInput.length && currentInput[idx] !== char,
+            'char-cursor': idx === currentInput.length && !isFinished,
+            'char-pending': idx > currentInput.length
+          }"
+        >{{ char }}</span>
       </div>
-      <div class="stat-box">
-        <span class="stat-title">Accuracy</span>
-        <span class="stat-number">{{ accuracy }}%</span>
-      </div>
-      <div class="stat-box">
-        <span class="stat-title">Time</span>
-        <span class="stat-number red">{{ timeLeft }}s</span>
-      </div>
-    </div>
 
-    <!-- Dictionary Loader Switch -->
-    <div class="dict-options">
-      <span class="dict-label">Dictionary:</span>
-      <button
-        class="btn btn-secondary dict-btn"
-        :disabled="isDictionaryLoaded || isLoadingDictionary"
-        @click="loadSpanishDictionary"
-      >
-        <span v-if="isLoadingDictionary" class="spinner-inline"></span>
-        <span v-else-if="isDictionaryLoaded">✓ Spanish Active (600k)</span>
-        <span v-else>📥 Load Spanish Dictionary</span>
-      </button>
+      <!-- Finished Summary Screen Overlay -->
+      <div v-if="isFinished" class="finished-overlay">
+        <div class="finished-modal">
+          <div class="finished-badge">CHALLENGE COMPLETED</div>
+          <h3 class="finished-title">Session Results</h3>
+          
+          <div class="results-stats-row">
+            <div class="result-box">
+              <span class="res-label">Net Speed</span>
+              <span class="res-number red">{{ wpm }} <small>WPM</small></span>
+            </div>
+            <div class="result-box">
+              <span class="res-label">Accuracy</span>
+              <span class="res-number green">{{ accuracy }}%</span>
+            </div>
+            <div class="result-box">
+              <span class="res-label">Keystrokes</span>
+              <span class="res-number">{{ totalKeystrokes }}</span>
+            </div>
+            <div class="result-box">
+              <span class="res-label">Errors</span>
+              <span class="res-number error">{{ errorKeystrokes }}</span>
+            </div>
+          </div>
+
+          <div class="finished-actions">
+            <button class="btn btn-red" @click="resetTest">
+              <span>🔄</span> Try Again (Tab)
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.typing-cabinet {
+.blitz-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 1.5rem;
   width: 100%;
-  max-width: 520px;
+  max-width: 1050px;
   margin: 0 auto;
 }
 
-.typing-display-box {
-  position: relative;
-  width: 100%;
-  height: 200px;
-  background: #070507;
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+/* Control Header Card */
+.control-header-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.header-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.blitz-brand {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.85rem;
 }
 
-.typing-display-box::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-  background-size: 100% 4px;
-  pointer-events: none;
-  z-index: 10;
+.blitz-icon {
+  font-size: 1.8rem;
+  color: var(--neon-red);
+  filter: drop-shadow(0 0 12px rgba(255, 30, 66, 0.5));
 }
 
-.word-stage {
-  padding: 1.5rem;
-  text-align: center;
+.blitz-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1.2;
 }
 
-.target-word {
-  font-family: var(--font-mono);
-  font-size: 2.5rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.blitz-desc {
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
-.char-correct {
-  color: var(--neon-red);
-  text-shadow: var(--shadow-red);
-}
-
-.char-wrong {
-  color: #ef4444;
-  text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
-  text-decoration: underline;
-}
-
-.overlay-screen {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(7, 5, 7, 0.94);
+.modes-toolbar {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  z-index: 20;
-  padding: 1.5rem;
-  text-align: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1rem;
 }
 
-.overlay-badge {
-  font-family: var(--font-retro);
-  font-size: 0.6rem;
+.config-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.35rem 0.5rem;
+  border-radius: 50px;
+  border: 1px solid var(--border-color);
+}
+
+.config-pill-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.85rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.config-pill-btn:hover {
+  color: white;
+}
+
+.config-pill-btn.active {
+  background: var(--gradient-red);
+  color: white;
+  box-shadow: var(--shadow-red);
+}
+
+.sub-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-left: 0.5rem;
+  font-weight: 600;
+}
+
+.sub-pill {
+  padding: 0.25rem 0.65rem;
+  font-family: var(--font-mono);
+}
+
+.quotes-selector-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quote-dropdown {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color);
+  color: white;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.quote-dropdown:focus {
+  border-color: var(--neon-red);
+}
+
+/* Stats Counter Bar */
+.stats-counter-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.stat-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}
+
+.stat-meta {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+.stat-digit {
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: white;
+}
+
+.stat-digit.red { color: var(--neon-red); text-shadow: var(--shadow-red); }
+.stat-digit.green { color: #10b981; text-shadow: 0 0 14px rgba(16, 185, 129, 0.4); }
+.stat-digit small { font-size: 0.8rem; color: var(--text-muted); }
+
+/* Interactive Typing Stage Card */
+.typing-stage-card {
+  position: relative;
+  background: #070507;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  min-height: 280px;
+  cursor: text;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.25s ease;
+}
+
+.typing-stage-card:focus-within {
+  border-color: var(--border-glow-red);
+}
+
+.stage-meta-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.passage-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--neon-red);
   background: rgba(255, 30, 66, 0.1);
   border: 1px solid rgba(255, 30, 66, 0.3);
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
-  margin-bottom: 0.75rem;
 }
 
-.overlay-title {
-  font-family: var(--font-retro);
-  font-size: 1.3rem;
-  color: var(--neon-red);
-  text-shadow: var(--shadow-red);
-  margin-bottom: 0.75rem;
-}
-
-.gameover-title {
-  color: var(--neon-crimson);
-  text-shadow: var(--shadow-red-strong);
-}
-
-.overlay-desc {
+.passage-author {
   font-size: 0.85rem;
   color: var(--text-secondary);
-  max-width: 320px;
-  line-height: 1.5;
-  margin-bottom: 1.2rem;
+  font-weight: 600;
 }
 
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  margin-bottom: 1.25rem;
+.keyboard-hint {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.keyboard-hint kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* Hidden typing input capturing keystrokes */
+.hidden-typing-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  left: -9999px;
+}
+
+/* Text Display & Character Coloring */
+.text-display-box {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  line-height: 1.85;
+  letter-spacing: 0.03em;
+  user-select: none;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.stage-char {
+  transition: color 0.1s ease;
+}
+
+/* 🟢 Correct Character: BRIGHT GREEN */
+.char-correct {
+  color: #10b981;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+/* 🔴 Wrong Character: BRIGHT RED */
+.char-wrong {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.18);
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  border-radius: 2px;
+}
+
+/* ⚪ Pending Characters */
+.char-pending {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* 📍 Blinking Cursor */
+.char-cursor {
+  position: relative;
+  color: white;
+  border-left: 2px solid var(--neon-red);
+  animation: cursorBlink 0.9s infinite;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { border-color: var(--neon-red); }
+  50% { border-color: transparent; }
+}
+
+/* Finished Overlay Modal */
+.finished-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(7, 5, 7, 0.94);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  z-index: 50;
+  animation: fadeIn 0.3s ease;
+}
+
+.finished-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+  max-width: 500px;
   width: 100%;
-  max-width: 340px;
 }
 
-.result-card {
+.finished-badge {
+  font-family: var(--font-retro);
+  font-size: 0.65rem;
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.1);
+  border: 1px solid rgba(255, 30, 66, 0.3);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+}
+
+.finished-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: white;
+}
+
+.results-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.result-box {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 0.5rem;
-  text-align: center;
+  padding: 0.85rem 0.5rem;
 }
 
-.result-label {
+.res-label {
   display: block;
   font-size: 0.65rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  margin-bottom: 0.2rem;
-}
-
-.result-val {
-  font-size: 1.2rem;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
-.result-val.red { color: var(--neon-red); }
-.result-val small { font-size: 0.6rem; color: var(--text-muted); }
-
-.input-wrapper {
-  width: 100%;
-}
-
-.typing-input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 0.9rem 1.5rem;
-  font-size: 1.2rem;
-  color: white;
-  text-align: center;
-  font-family: var(--font-mono);
-  transition: var(--transition);
-}
-
-.typing-input:focus {
-  outline: none;
-  border-color: var(--neon-red);
-  box-shadow: var(--shadow-red);
-}
-
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  width: 100%;
-}
-
-.stat-box {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 0.85rem;
-  text-align: center;
-}
-
-.stat-title {
-  display: block;
-  font-size: 0.7rem;
   color: var(--text-muted);
   text-transform: uppercase;
   font-weight: 600;
   margin-bottom: 0.25rem;
 }
 
-.stat-number {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: white;
+.res-number {
   font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: white;
 }
 
-.stat-number.red { color: var(--neon-red); }
-.stat-unit { font-size: 0.65rem; color: var(--text-muted); font-weight: 400; }
+.res-number.red { color: var(--neon-red); text-shadow: var(--shadow-red); }
+.res-number.green { color: #10b981; }
+.res-number.error { color: #ef4444; }
+.res-number small { font-size: 0.65rem; color: var(--text-muted); }
 
-.dict-options {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.finished-actions {
+  margin-top: 0.5rem;
 }
 
-.dict-label {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
+@media (max-width: 768px) {
+  .results-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
-.dict-btn {
-  font-size: 0.8rem;
-  padding: 0.45rem 1rem;
+  .text-display-box {
+    font-size: 1.15rem;
+  }
 }
 </style>

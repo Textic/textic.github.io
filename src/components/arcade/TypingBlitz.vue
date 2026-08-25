@@ -9,7 +9,7 @@ type Language = 'en' | 'es'
 
 const mode = ref<Mode>('quotes')
 const language = ref<Language>('en')
-const wordCountOption = ref<number>(25)
+const wordCountOption = ref<number>(50)
 const timeLimitOption = ref<number>(60)
 const selectedQuoteIndex = ref<number>(0)
 
@@ -41,67 +41,67 @@ interface QuoteItem {
 
 const QUOTES_EN: QuoteItem[] = [
   {
-    title: "The Road Not Taken",
+    title: "The Road Not Taken (Complete)",
     author: "Robert Frost",
-    text: "Two roads diverged in a yellow wood, and sorry I could not travel both and be one traveler, long I stood and looked down one as far as I could to where it bent in the undergrowth."
+    text: "Two roads diverged in a yellow wood, and sorry I could not travel both and be one traveler, long I stood and looked down one as far as I could to where it bent in the undergrowth; then took the other, as just as fair, and having perhaps the better claim, because it was grassy and wanted wear; though as for that the passing there had worn them really about the same, and both that morning equally lay in leaves no step had trodden black. Oh, I kept the first for another day! Yet knowing how way leads on to way, I doubted if I should ever come back. I shall be telling this with a sigh somewhere ages and ages hence: Two roads diverged in a wood, and I—I took the one less traveled by, and that has made all the difference."
   },
   {
-    title: "Sonnet 18",
+    title: "Hamlet: To Be or Not To Be",
     author: "William Shakespeare",
-    text: "Shall I compare thee to a summer's day? Thou art more lovely and more temperate. Rough winds do shake the darling buds of May, and summer's lease hath all too short a date."
+    text: "To be, or not to be, that is the question: whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune, or to take arms against a sea of troubles and by opposing end them. To die—to sleep, no more; and by a sleep to say we end the heart-ache and the thousand natural shocks that flesh is heir to: 'tis a consummation devoutly to be wish'd. To die, to sleep; to sleep, perchance to dream—ay, there's the rub: for in that sleep of death what dreams may come, when we have shuffled off this mortal coil, must give us pause. There's the respect that makes calamity of so long life."
   },
   {
-    title: "The Raven",
+    title: "The Raven (Opening Cantos)",
     author: "Edgar Allan Poe",
-    text: "Once upon a midnight dreary, while I pondered, weak and weary, over many a quaint and curious volume of forgotten lore, while I nodded, nearly napping, suddenly there came a tapping."
+    text: "Once upon a midnight dreary, while I pondered, weak and weary, over many a quaint and curious volume of forgotten lore—while I nodded, nearly napping, suddenly there came a tapping, as of some one gently rapping, rapping at my chamber door. 'Tis some visitor,' I muttered, 'tapping at my chamber door—only this and nothing more.' Ah, distinctly I remember it was in the bleak December; and each separate dying ember wrought its ghost upon the floor. Eagerly I wished the morrow;—vainly I had sought to borrow from my books surcease of sorrow—sorrow for the lost Lenore—for the rare and radiant maiden whom the angels name Lenore—nameless here for evermore."
   },
   {
-    title: "Philosophy of Code",
-    author: "Linus Torvalds",
-    text: "Talk is cheap. Show me the code. Software is like sex: it is better when it is free. Most good programmers do programming not because they expect to get paid, but because it is fun."
+    title: "The Hacker Ethic & Free Software",
+    author: "Richard Stallman & Linus Torvalds",
+    text: "I consider that the golden rule requires that if I like a program I must share it with other people who like it. Software sellers want to divide the users and conquer them, making each user agree not to share with others. I refuse to break solidarity with other users in this way. So that I can continue to use computers without dishonor, I have decided to put together a sufficient body of free software so that I will be able to get along without any software that is not free. Talk is cheap. Show me the code. Software is like freedom: once you experience it, you can never go back."
   },
   {
     title: "Stay Hungry, Stay Foolish",
     author: "Steve Jobs",
-    text: "Your time is limited, so don't waste it living someone else's life. Don't be trapped by dogma, which is living with the results of other people's thinking. Have the courage to follow your heart."
+    text: "Remembering that I'll be dead soon is the most important tool I've ever encountered to help me make the big choices in life. Because almost everything—all external expectations, all pride, all fear of embarrassment or failure—these things just fall away in the face of death, leaving only what is truly important. Remembering that you are going to die is the best way I know to avoid the trap of thinking you have something to lose. You are already naked. There is no reason not to follow your heart. Your time is limited, so don't waste it living someone else's life. Stay hungry. Stay foolish."
   },
   {
-    title: "Computing Machinery",
-    author: "Alan Turing",
-    text: "We can only see a short distance ahead, but we can see plenty there that needs to be done. A computer would deserve to be called intelligent if it could deceive a human into believing that it was human."
+    title: "The Myth of Sisyphus",
+    author: "Albert Camus",
+    text: "The struggle itself toward the heights is enough to fill a man's heart. One must imagine Sisyphus happy. It is during that return, that pause, that Sisyphus interests me. A face that toils so close to stones is already stone itself! I see that man going back down with a heavy yet measured step toward the torment of which he will never know the end. That hour like a breathing-space which returns as surely as his suffering, that is the hour of consciousness. At each of those moments when he leaves the heights and gradually sinks toward the laves of the gods, he is superior to his fatal destiny."
   }
 ]
 
 const QUOTES_ES: QuoteItem[] = [
   {
-    title: "Don Quijote de la Mancha",
+    title: "Don Quijote de la Mancha (Capítulo I)",
     author: "Miguel de Cervantes",
-    text: "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor."
+    text: "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor. Una olla de algo más vaca que carnero, salpicón las más noches, duelos y quebrantos los sábados, lantejas los viernes, algún palomino de añadidura los domingos, consumían las tres partes de su hacienda. El resto della concluían sayo de velarte, calzas de velludo para las fiestas, con sus pantuflos de lo mesmo, y los días de entresemana se honraba con su vellorí de lo más fino. Tenía en su casa una ama que pasaba de los cuarenta, y una sobrina que no llegaba a los veinte, y un mozo de campo y plaza, que así ensillaba el rocín como tomaba la podadera."
   },
   {
-    title: "Poema 20",
+    title: "Poema 20 (Veinte poemas de amor)",
     author: "Pablo Neruda",
-    text: "Puedo escribir los versos más tristes esta noche. Escribir, por ejemplo: La noche está estrellada, y tiritan, azules, los astros, a lo lejos. El viento de la noche gira en el cielo y canta."
+    text: "Puedo escribir los versos más tristes esta noche. Escribir, por ejemplo: La noche está estrellada, y tiritan, azules, los astros, a lo lejos. El viento de la noche gira en el cielo y canta. Puedo escribir los versos más tristes esta noche. Yo la quise, y a veces ella también me quiso. En las noches como esta la tuve entre mis brazos. La besé tantas veces bajo el cielo infinito. Ella me quiso, a veces yo también la quería. Cómo no haber amado sus grandes ojos fijos. Puedo escribir los versos más tristes esta noche. Pensar que no la tengo. Sentir que la he perdido. Oír la noche inmensa, más inmensa sin ella. Y el verso cae al alma como al pasto el rocío."
   },
   {
-    title: "El Aleph",
+    title: "El Aleph (Visión del Universo)",
     author: "Jorge Luis Borges",
-    text: "Vi el populoso mar, vi el alba y la tarde, vi las muchedumbres de América, vi una plateada telaraña en el centro de una negra pirámide, vi un laberinto roto que era Londres, vi interminables ojos inmediatos."
+    text: "En la parte inferior del escalón, hacia la derecha, vi una pequeña esfera tornasolada, de casi intolerable fulgor. Al principio la creí giratoria; luego comprendí que ese movimiento era una ilusión producida por los vertiginosos espectáculos que encerraba. El diámetro del Aleph sería de dos o tres centímetros, pero el espacio cósmico estaba ahí, sin disminución de tamaño. Cada cosa (la luna del espejo, digamos) era infinitas cosas, porque yo claramente la veía desde todos los puntos del universo. Vi el populoso mar, vi el alba y la tarde, vi las muchedumbres de América, vi una plateada telaraña en el centro de una negra pirámide, vi un laberinto roto que era Londres, vi interminables ojos inmediatos mirándose en mí como en un espejo."
   },
   {
-    title: "Rima XXI",
-    author: "Gustavo Adolfo Bécquer",
-    text: "¿Qué es poesía?, dices mientras clavas en mi pupila tu pupila azul. ¿Qué es poesía? ¿Y tú me lo preguntas? Poesía... eres tú."
-  },
-  {
-    title: "Romance Sonámbulo",
-    author: "Federico García Lorca",
-    text: "Verde que te quiero verde. Verde viento. Verdes ramas. El barco sobre la mar y el caballo en la montaña. Con la sombra en la cintura ella sueña en su baranda, verde carne, pelo verde, con ojos de fría plata."
-  },
-  {
-    title: "Cien años de soledad",
+    title: "Cien años de soledad (Comienzo legendario)",
     author: "Gabriel García Márquez",
-    text: "Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo."
+    text: "Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo. Macondo era entonces una aldea de veinte casas de barro y cañabrava construidas a la orilla de un río de aguas diáfanas que se precipitaban por un lecho de piedras pulidas, blancas y enormes como huevos prehistóricos. El mundo era tan reciente, que muchas cosas carecían de nombre, y para mencionarlas había que señalarlas con el dedo. Todos los años, por el mes de marzo, una familia de gitanos desarrapados plantaba su carpa cerca de la aldea, y con un grande alboroto de pitos y timbales daban a conocer los nuevos inventos de los sabios de oriente."
+  },
+  {
+    title: "Romance Sonámbulo (Poema Completo)",
+    author: "Federico García Lorca",
+    text: "Verde que te quiero verde. Verde viento. Verdes ramas. El barco sobre la mar y el caballo en la montaña. Con la sombra en la cintura ella sueña en su baranda, verde carne, pelo verde, con ojos de fría plata. Verde que te quiero verde. Bajo la luna gitana, las cosas le están mirando y ella no puede mirarlas. Grandes estrellas de escarcha vienen con el pez de sombra que abre el camino del alba. La higuera frota su viento con la lija de sus ramas, y el monte, gato garduño, eriza sus pitas agrias. ¿Pero quién vendrá? ¿Y por dónde? Ella sigue en su baranda, verde carne, pelo verde, soñando en la mar amarga."
+  },
+  {
+    title: "Rimas y Leyendas (El Monte de las Ánimas)",
+    author: "Gustavo Adolfo Bécquer",
+    text: "La noche de difuntos me despertó a no sé qué hora el doble de las campanas. Su tañido monótono y eterno me trajo a las mientes esta tradición que oí hace poco en Soria. Intenté dormir de nuevo. ¡Imposible! La imaginación, caldeada por historias fantásticas, perseguía sombras que flotaban en el aire. Las campanas doblaban, el viento zumbaba en los cristales del balcón, y las hojas secas crujían en el jardín. En aquel monte sagrado, las almas de los caballeros templarios se levantaban de sus tumbas cubiertas de musgo para perseguir a las fieras en una cacería espectral que duraba hasta el primer rayo del alba."
   }
 ]
 
@@ -261,6 +261,23 @@ const handleKeyInput = (e: Event) => {
   }
 
   currentInput.value = val
+
+  // Auto scroll long text passages so active line is always visible
+  nextTick(() => {
+    if (displayAreaRef.value) {
+      const cursorEl = displayAreaRef.value.querySelector('.char-cursor') as HTMLElement
+      if (cursorEl) {
+        const containerTop = displayAreaRef.value.getBoundingClientRect().top
+        const cursorTop = cursorEl.getBoundingClientRect().top
+        const relativeOffset = cursorTop - containerTop
+        if (relativeOffset > 140) {
+          displayAreaRef.value.scrollTop += (relativeOffset - 100)
+        } else if (relativeOffset < 20) {
+          displayAreaRef.value.scrollTop = 0
+        }
+      }
+    }
+  })
 
   // Complete test if typed all text in quotes or words mode
   if (mode.value !== 'time' && val.length >= fullText.value.length) {
@@ -427,7 +444,7 @@ const handleGlobalKey = (e: KeyboardEvent) => {
         <div v-if="mode === 'words'" class="config-pill-group sub-options">
           <span class="sub-label">Count:</span>
           <button 
-            v-for="count in [10, 25, 50, 100]" 
+            v-for="count in [25, 50, 100, 200]" 
             :key="count"
             class="config-pill-btn sub-pill"
             :class="{ active: wordCountOption === count }"
@@ -803,6 +820,10 @@ const handleGlobalKey = (e: KeyboardEvent) => {
   user-select: none;
   word-break: break-word;
   white-space: pre-wrap;
+  max-height: 280px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  padding-right: 0.5rem;
 }
 
 .stage-char {

@@ -539,7 +539,7 @@ const handleGlobalKey = (e: KeyboardEvent) => {
             'char-correct': idx < currentInput.length && currentInput[idx] === char,
             'char-wrong': idx < currentInput.length && currentInput[idx] !== char,
             'char-cursor': idx === currentInput.length && !isFinished,
-            'char-pending': idx > currentInput.length
+            'char-pending': idx >= currentInput.length
           }"
         >{{ char }}</span>
       </div>
@@ -850,11 +850,13 @@ const handleGlobalKey = (e: KeyboardEvent) => {
   opacity: 0.6;
 }
 
-/* 📍 Blinking Cursor */
+/* 📍 Blinking Caret Cursor (No white flash on letter) */
 .char-cursor {
   position: relative;
-  color: white;
-  border-left: 2px solid var(--neon-red);
+  color: var(--text-muted);
+  opacity: 0.85;
+  border-left: 2.5px solid var(--neon-red);
+  margin-left: -1px;
   animation: cursorBlink 0.9s infinite;
 }
 

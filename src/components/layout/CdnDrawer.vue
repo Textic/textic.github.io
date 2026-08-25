@@ -32,32 +32,32 @@ const cdnFiles: CdnItem[] = [
   {
     title: 'Spanish Dictionary',
     path: 'assets/dictionary.json',
-    description: 'Más de 646k palabras en español (~14.5 MB). Usado internamente por Typing Blitz.',
+    description: 'Over 646k Spanish words (~14.5 MB). Used internally by Typing Blitz.',
     badge: '14.5 MB'
   },
   {
     title: 'Gamer Nicknames',
     path: 'assets/names.json',
-    description: 'Lista de alias y nombres de usuario para videojuegos y plataformas (~26 KB).',
+    description: 'Curated list of gaming alias templates and usernames (~26 KB).',
     badge: '26 KB'
   },
   {
     title: 'Mock Test Users',
     path: 'assets/testUsers.json',
-    description: 'Credenciales y datos de usuarios de prueba para prototipos de login (~365 B).',
+    description: 'Basic credentials and mock user datasets for authentication prototyping (~365 B).',
     badge: '365 B'
   },
   {
     title: 'Asset Links Verification',
     path: '.well-known/assetlinks.json',
-    description: 'Configuración oficial de Digital Asset Links para integración de apps Android.',
+    description: 'Official Digital Asset Links configuration for Android App Links verification.',
     badge: 'JSON'
   }
 ]
 
 const copyEndpoint = (path: string) => {
   const url = `${baseUrl.value}/${path}`
-  copyToClipboard(url, `Endpoint copiado: ${path}`)
+  copyToClipboard(url, `Endpoint copied: ${path}`)
 }
 </script>
 
@@ -74,9 +74,9 @@ const copyEndpoint = (path: string) => {
 
     <div v-show="isOpen" class="cdn-body">
       <p class="cdn-desc">
-        Tus archivos estáticos se hospedan y sirven públicamente a través de esta infraestructura.
-        Cualquier aplicación externa o script puede consumirlos directamente vía HTTP GET sin autenticación.
-        Haz clic en cualquier tarjeta o ruta para copiar la URL completa.
+        Your static assets are hosted and served publicly through this repository infrastructure.
+        Any external application, mobile app, or script can fetch them directly via HTTP GET without authentication.
+        Click any card or path below to copy the absolute endpoint URL.
       </p>
 
       <div class="cdn-grid">
@@ -92,7 +92,7 @@ const copyEndpoint = (path: string) => {
           </div>
           <code class="card-path">{{ baseUrl }}/{{ item.path }}</code>
           <p class="card-info">{{ item.description }}</p>
-          <div class="card-copy-hint">📋 Clic para copiar endpoint</div>
+          <div class="card-copy-hint">📋 Click to copy endpoint</div>
         </div>
       </div>
 
@@ -100,22 +100,22 @@ const copyEndpoint = (path: string) => {
         <div class="instruction-step">
           <div class="step-number">1</div>
           <div>
-            <h5>Guardar Archivos</h5>
-            <p>Ubica tus archivos dentro del directorio <code>public/assets/</code>.</p>
+            <h5>Save Files</h5>
+            <p>Place your files inside the <code>public/assets/</code> directory.</p>
           </div>
         </div>
         <div class="instruction-step">
           <div class="step-number">2</div>
           <div>
-            <h5>Hacer Git Push</h5>
-            <p>Sube tus cambios a la rama principal (<code>main</code>).</p>
+            <h5>Git Push</h5>
+            <p>Push your changes to the <code>main</code> branch on GitHub.</p>
           </div>
         </div>
         <div class="instruction-step">
           <div class="step-number">3</div>
           <div>
-            <h5>Consumir</h5>
-            <p>Accede inmediatamente en <code>https://textic.github.io/assets/tu_archivo.json</code>.</p>
+            <h5>Consume</h5>
+            <p>Fetch instantly at <code>https://textic.github.io/assets/filename.json</code>.</p>
           </div>
         </div>
       </div>
@@ -160,9 +160,9 @@ const copyEndpoint = (path: string) => {
 
 .files-count {
   font-size: 0.75rem;
-  background: rgba(0, 240, 255, 0.1);
-  color: var(--neon-cyan);
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  background: rgba(255, 30, 66, 0.1);
+  color: var(--neon-red);
+  border: 1px solid rgba(255, 30, 66, 0.3);
   padding: 0.15rem 0.6rem;
   border-radius: 50px;
   font-weight: 600;
@@ -176,7 +176,7 @@ const copyEndpoint = (path: string) => {
 
 .cdn-arrow.open {
   transform: rotate(180deg);
-  color: var(--neon-cyan);
+  color: var(--neon-red);
 }
 
 .cdn-body {
@@ -202,7 +202,7 @@ const copyEndpoint = (path: string) => {
 }
 
 .cdn-card {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 1.2rem;
@@ -213,10 +213,10 @@ const copyEndpoint = (path: string) => {
 }
 
 .cdn-card:hover {
-  border-color: var(--border-glow-cyan);
-  background: rgba(0, 240, 255, 0.03);
+  border-color: var(--border-glow-red);
+  background: rgba(255, 30, 66, 0.04);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-cyan);
+  box-shadow: var(--shadow-red);
 }
 
 .card-top {
@@ -235,18 +235,18 @@ const copyEndpoint = (path: string) => {
 .card-badge {
   font-size: 0.7rem;
   font-family: var(--font-mono);
-  color: var(--neon-pink);
-  background: rgba(255, 0, 127, 0.1);
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.1);
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
-  border: 1px solid rgba(255, 0, 127, 0.25);
+  border: 1px solid rgba(255, 30, 66, 0.25);
 }
 
 .card-path {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--neon-cyan);
-  background: rgba(0, 0, 0, 0.3);
+  color: var(--neon-red);
+  background: rgba(0, 0, 0, 0.4);
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
   margin-bottom: 0.65rem;
@@ -272,7 +272,7 @@ const copyEndpoint = (path: string) => {
 }
 
 .cdn-card:hover .card-copy-hint {
-  color: var(--neon-cyan);
+  color: var(--neon-red);
 }
 
 .cdn-instructions {
@@ -295,7 +295,7 @@ const copyEndpoint = (path: string) => {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--gradient-pink);
+  background: var(--gradient-red);
   color: white;
   font-weight: 700;
   font-size: 0.85rem;
@@ -319,7 +319,7 @@ const copyEndpoint = (path: string) => {
 
 .instruction-step code {
   font-family: var(--font-mono);
-  color: var(--neon-cyan);
+  color: var(--neon-red);
   font-size: 0.75rem;
 }
 </style>

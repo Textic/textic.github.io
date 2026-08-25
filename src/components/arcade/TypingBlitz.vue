@@ -14,7 +14,7 @@ const DEFAULT_WORDS = [
 ]
 
 const wordPool = ref<string[]>([...DEFAULT_WORDS])
-const currentWord = ref('iniciar')
+const currentWord = ref('start')
 const userInput = ref('')
 const isRunning = ref(false)
 const isGameOver = ref(false)
@@ -116,7 +116,7 @@ const loadSpanishDictionary = async () => {
   isLoadingDictionary.value = true
   try {
     const res = await fetch('/assets/dictionary.json')
-    if (!res.ok) throw new Error('No se pudo descargar el diccionario')
+    if (!res.ok) throw new Error('Could not download dictionary')
     const data = await res.json()
 
     if (data && Array.isArray(data.spanish)) {
@@ -125,11 +125,11 @@ const loadSpanishDictionary = async () => {
         .map((w: string) => w.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())
       
       isDictionaryLoaded.value = true
-      showToast(`¡Diccionario en español cargado (${wordPool.value.length.toLocaleString()} palabras)!`)
+      showToast(`Spanish dictionary loaded (${wordPool.value.length.toLocaleString()} words)!`)
     }
   } catch (err) {
     console.error(err)
-    showToast('Error cargando el diccionario en español', 'error')
+    showToast('Error loading Spanish dictionary', 'error')
   } finally {
     isLoadingDictionary.value = false
   }
@@ -144,33 +144,33 @@ const loadSpanishDictionary = async () => {
         <div class="overlay-badge">SPEED CHALLENGE</div>
         <h3 class="overlay-title">TYPING BLITZ</h3>
         <p class="overlay-desc">
-          Escribe la mayor cantidad de palabras posible en 60 segundos manteniendo alta precisión.
+          Type as many words as you can in 60 seconds while maintaining high accuracy.
         </p>
-        <button class="btn btn-cyan" @click="startGame">
-          <span>⚡</span> Iniciar Desafío
+        <button class="btn btn-red" @click="startGame">
+          <span>⚡</span> Start Blitz
         </button>
       </div>
 
       <!-- Overlay: Game Over -->
       <div v-else-if="isGameOver" class="overlay-screen gameover">
-        <h3 class="overlay-title gameover-title">TIEMPO CUMPLIDO</h3>
-        <p class="overlay-desc">Estadísticas de tu sesión:</p>
+        <h3 class="overlay-title gameover-title">TIME'S UP</h3>
+        <p class="overlay-desc">Your session statistics:</p>
         <div class="results-grid">
           <div class="result-card">
-            <span class="result-label">VELOCIDAD</span>
-            <span class="result-val cyan">{{ wpm }} <small>WPM</small></span>
+            <span class="result-label">SPEED</span>
+            <span class="result-val red">{{ wpm }} <small>WPM</small></span>
           </div>
           <div class="result-card">
-            <span class="result-label">PRECISIÓN</span>
-            <span class="result-val pink">{{ accuracy }}%</span>
+            <span class="result-label">ACCURACY</span>
+            <span class="result-val">{{ accuracy }}%</span>
           </div>
           <div class="result-card">
-            <span class="result-label">PALABRAS</span>
+            <span class="result-label">WORDS</span>
             <span class="result-val">{{ correctWordsCount }}</span>
           </div>
         </div>
-        <button class="btn btn-pink" @click="startGame">
-          <span>🔄</span> Reintentar Blitz
+        <button class="btn btn-red" @click="startGame">
+          <span>🔄</span> Retry Blitz
         </button>
       </div>
 
@@ -196,7 +196,7 @@ const loadSpanishDictionary = async () => {
         v-model="userInput"
         type="text"
         class="typing-input"
-        placeholder="Escribe la palabra aquí..."
+        placeholder="Type the word above..."
         :disabled="!isRunning"
         autocomplete="off"
         autocorrect="off"
@@ -209,30 +209,30 @@ const loadSpanishDictionary = async () => {
     <!-- Live Stats Grid -->
     <div class="stats-row">
       <div class="stat-box">
-        <span class="stat-title">Velocidad</span>
-        <span class="stat-number cyan">{{ wpm }} <span class="stat-unit">WPM</span></span>
+        <span class="stat-title">Speed</span>
+        <span class="stat-number red">{{ wpm }} <span class="stat-unit">WPM</span></span>
       </div>
       <div class="stat-box">
-        <span class="stat-title">Precisión</span>
+        <span class="stat-title">Accuracy</span>
         <span class="stat-number">{{ accuracy }}%</span>
       </div>
       <div class="stat-box">
-        <span class="stat-title">Tiempo</span>
-        <span class="stat-number pink">{{ timeLeft }}s</span>
+        <span class="stat-title">Time</span>
+        <span class="stat-number red">{{ timeLeft }}s</span>
       </div>
     </div>
 
     <!-- Dictionary Loader Switch -->
     <div class="dict-options">
-      <span class="dict-label">Diccionario:</span>
+      <span class="dict-label">Dictionary:</span>
       <button
         class="btn btn-secondary dict-btn"
         :disabled="isDictionaryLoaded || isLoadingDictionary"
         @click="loadSpanishDictionary"
       >
         <span v-if="isLoadingDictionary" class="spinner-inline"></span>
-        <span v-else-if="isDictionaryLoaded">✓ Español Activado (600k)</span>
-        <span v-else>📥 Cargar Diccionario Español</span>
+        <span v-else-if="isDictionaryLoaded">✓ Spanish Active (600k)</span>
+        <span v-else>📥 Load Spanish Dictionary</span>
       </button>
     </div>
   </div>
@@ -253,7 +253,7 @@ const loadSpanishDictionary = async () => {
   position: relative;
   width: 100%;
   height: 200px;
-  background: #03040b;
+  background: #070507;
   border: 2px solid var(--border-color);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -287,20 +287,20 @@ const loadSpanishDictionary = async () => {
 }
 
 .char-correct {
-  color: var(--neon-cyan);
-  text-shadow: var(--shadow-cyan);
+  color: var(--neon-red);
+  text-shadow: var(--shadow-red);
 }
 
 .char-wrong {
-  color: var(--neon-pink);
-  text-shadow: var(--shadow-pink);
+  color: #ef4444;
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
   text-decoration: underline;
 }
 
 .overlay-screen {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(4, 6, 18, 0.94);
+  background: rgba(7, 5, 7, 0.94);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -313,9 +313,9 @@ const loadSpanishDictionary = async () => {
 .overlay-badge {
   font-family: var(--font-retro);
   font-size: 0.6rem;
-  color: var(--neon-cyan);
-  background: rgba(0, 240, 255, 0.1);
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.1);
+  border: 1px solid rgba(255, 30, 66, 0.3);
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
   margin-bottom: 0.75rem;
@@ -324,14 +324,14 @@ const loadSpanishDictionary = async () => {
 .overlay-title {
   font-family: var(--font-retro);
   font-size: 1.3rem;
-  color: var(--neon-cyan);
-  text-shadow: var(--shadow-cyan);
+  color: var(--neon-red);
+  text-shadow: var(--shadow-red);
   margin-bottom: 0.75rem;
 }
 
 .gameover-title {
-  color: var(--neon-pink);
-  text-shadow: var(--shadow-pink-strong);
+  color: var(--neon-crimson);
+  text-shadow: var(--shadow-red-strong);
 }
 
 .overlay-desc {
@@ -373,8 +373,7 @@ const loadSpanishDictionary = async () => {
   font-family: var(--font-mono);
 }
 
-.result-val.cyan { color: var(--neon-cyan); }
-.result-val.pink { color: var(--neon-pink); }
+.result-val.red { color: var(--neon-red); }
 .result-val small { font-size: 0.6rem; color: var(--text-muted); }
 
 .input-wrapper {
@@ -396,8 +395,8 @@ const loadSpanishDictionary = async () => {
 
 .typing-input:focus {
   outline: none;
-  border-color: var(--neon-pink);
-  box-shadow: var(--shadow-pink);
+  border-color: var(--neon-red);
+  box-shadow: var(--shadow-red);
 }
 
 .stats-row {
@@ -431,8 +430,7 @@ const loadSpanishDictionary = async () => {
   font-family: var(--font-mono);
 }
 
-.stat-number.cyan { color: var(--neon-cyan); }
-.stat-number.pink { color: var(--neon-pink); }
+.stat-number.red { color: var(--neon-red); }
 .stat-unit { font-size: 0.65rem; color: var(--text-muted); font-weight: 400; }
 
 .dict-options {

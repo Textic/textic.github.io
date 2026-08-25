@@ -18,12 +18,12 @@ export function useToast() {
     }, duration)
   }
 
-  const copyToClipboard = async (text: string, successMessage = '¡Copiado al portapapeles!') => {
+  const copyToClipboard = async (text: string, successMessage = 'Copied to clipboard!') => {
     try {
       await navigator.clipboard.writeText(text)
       showToast(successMessage, 'success')
     } catch {
-      showToast('No se pudo copiar al portapapeles', 'error')
+      showToast('Could not copy to clipboard', 'error')
     }
   }
 

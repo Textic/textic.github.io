@@ -27,7 +27,7 @@ const base64Result = computed(() => {
       return decodeURIComponent(escape(atob(text.trim())))
     }
   } catch {
-    return '⚠️ Entrada no es Base64 válido'
+    return '⚠️ Invalid Base64 string'
   }
 })
 
@@ -45,7 +45,7 @@ const base64UrlResult = computed(() => {
       return decodeURIComponent(escape(atob(b64)))
     }
   } catch {
-    return '⚠️ Entrada no es Base64 URL válido'
+    return '⚠️ Invalid Base64 URL string'
   }
 })
 
@@ -59,17 +59,17 @@ const hexResult = computed(() => {
       return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ')
     } else {
       const cleanHex = text.replace(/0x|\s+/g, '')
-      if (cleanHex.length % 2 !== 0) return '⚠️ Longitud impar de caracteres Hex'
+      if (cleanHex.length % 2 !== 0) return '⚠️ Odd length hex string'
       const bytes = new Uint8Array(cleanHex.length / 2)
       for (let i = 0; i < cleanHex.length; i += 2) {
         const byte = parseInt(cleanHex.substring(i, i + 2), 16)
-        if (isNaN(byte)) return '⚠️ Carácter hexadecimal inválido'
+        if (isNaN(byte)) return '⚠️ Invalid hexadecimal character'
         bytes[i / 2] = byte
       }
       return new TextDecoder().decode(bytes)
     }
   } catch {
-    return '⚠️ Error procesando Hex'
+    return '⚠️ Hex decoding error'
   }
 })
 
@@ -86,13 +86,13 @@ const binaryResult = computed(() => {
       const bytes = new Uint8Array(cleanBin.length)
       for (let i = 0; i < cleanBin.length; i++) {
         const item = cleanBin[i]
-        if (!item || !/^[01]+$/.test(item)) return '⚠️ Bloque binario inválido'
+        if (!item || !/^[01]+$/.test(item)) return '⚠️ Invalid binary block'
         bytes[i] = parseInt(item, 2)
       }
       return new TextDecoder().decode(bytes)
     }
   } catch {
-    return '⚠️ Error procesando Binario'
+    return '⚠️ Binary decoding error'
   }
 })
 
@@ -107,7 +107,7 @@ const urlResult = computed(() => {
       return decodeURIComponent(text)
     }
   } catch {
-    return '⚠️ Error procesando URL Encoding'
+    return '⚠️ URL decoding error'
   }
 })
 
@@ -124,7 +124,7 @@ const htmlEntitiesResult = computed(() => {
       return doc.documentElement.textContent || ''
     }
   } catch {
-    return '⚠️ Error procesando HTML Entities'
+    return '⚠️ HTML Entity parsing error'
   }
 })
 
@@ -182,7 +182,7 @@ const morseResult = computed(() => {
       }).join(' ')
     }
   } catch {
-    return '⚠️ Error procesando Código Morse'
+    return '⚠️ Morse code decoding error'
   }
 })
 
@@ -218,7 +218,7 @@ const computeHashes = async (text: string) => {
     sha1Hash.value = Array.from(new Uint8Array(sha1Buffer))
       .map(b => b.toString(16).padStart(2, '0')).join('')
   } catch {
-    sha256Hash.value = 'Error generando Hash'
+    sha256Hash.value = 'Hash computation error'
   }
 }
 
@@ -249,13 +249,13 @@ const cards = computed<CipherCard[]>(() => {
     { id: 'b64', title: 'Base64', icon: '📦', badge: 'Standard', output: base64Result.value },
     { id: 'b64url', title: 'Base64 URL-Safe', icon: '🔗', badge: 'RFC 4648', output: base64UrlResult.value },
     { id: 'hex', title: 'Hexadecimal', icon: '🔢', badge: 'Base16', output: hexResult.value },
-    { id: 'bin', title: 'Binario', icon: '⚡', badge: '8-bit', output: binaryResult.value },
+    { id: 'bin', title: 'Binary', icon: '⚡', badge: '8-bit', output: binaryResult.value },
     { id: 'url', title: 'URL Percent-Encoding', icon: '🌐', badge: 'URI', output: urlResult.value },
     { id: 'html', title: 'HTML Entities', icon: '🏷️', badge: 'Entities', output: htmlEntitiesResult.value },
     { id: 'rot13', title: 'ROT13', icon: '🌀', badge: 'Caesar', output: rot13Result.value },
     { id: 'atbash', title: 'Atbash Cipher', icon: '🔄', badge: 'A↔Z', output: atbashResult.value },
-    { id: 'morse', title: 'Código Morse', icon: '📻', badge: 'ITU', output: morseResult.value },
-    { id: 'rev', title: 'Texto Invertido', icon: '🪞', badge: 'Reverse', output: reverseResult.value },
+    { id: 'morse', title: 'Morse Code', icon: '📻', badge: 'ITU', output: morseResult.value },
+    { id: 'rev', title: 'Reversed Text', icon: '🪞', badge: 'Reverse', output: reverseResult.value },
   ]
 
   if (mode.value === 'encode') {
@@ -271,7 +271,7 @@ const cards = computed<CipherCard[]>(() => {
 
 const copyCard = (card: CipherCard) => {
   if (card.output && !card.output.startsWith('⚠️')) {
-    copyToClipboard(card.output, `¡${card.title} copiado!`)
+    copyToClipboard(card.output, `${card.title} copied!`)
   }
 }
 
@@ -285,7 +285,7 @@ const loadSample = () => {
   } else {
     inputText.value = 'VGV4dGljIERldmVsb3BlciBBcmNhZGUgMjAyNiDwn56+'
   }
-  showToast('Ejemplo cargado')
+  showToast('Sample loaded')
 }
 </script>
 
@@ -295,16 +295,16 @@ const loadSample = () => {
     <div class="cipher-input-card">
       <div class="input-card-header">
         <div class="header-title-box">
-          <span class="header-icon">🔐</span>
+          <span class="header-icon">⚡</span>
           <div>
             <h2 class="header-title">CipherLab</h2>
-            <p class="header-desc">Codificador y decodificador multi-formato en tiempo real.</p>
+            <p class="header-desc">Real-time multi-format text encoder and decoder.</p>
           </div>
         </div>
 
         <!-- Mode Toggle Switch (Encode vs Decode) -->
         <div class="mode-switch-wrapper">
-          <span class="mode-label" :class="{ active: mode === 'encode' }">Codificar</span>
+          <span class="mode-label" :class="{ active: mode === 'encode' }">Encode</span>
           <button 
             class="switch-btn" 
             :class="{ decode: mode === 'decode' }"
@@ -312,7 +312,7 @@ const loadSample = () => {
           >
             <span class="switch-ball"></span>
           </button>
-          <span class="mode-label" :class="{ active: mode === 'decode' }">Decodificar</span>
+          <span class="mode-label" :class="{ active: mode === 'decode' }">Decode</span>
         </div>
       </div>
 
@@ -321,7 +321,7 @@ const loadSample = () => {
         <textarea
           v-model="inputText"
           class="cipher-textarea"
-          :placeholder="mode === 'encode' ? 'Escribe o pega el texto plano a codificar...' : 'Pega aquí el código (Base64, Hex, Binario...) a decodificar...'"
+          :placeholder="mode === 'encode' ? 'Type or paste raw text to encode...' : 'Paste encoded string (Base64, Hex, Binary...) to decode...'"
           spellcheck="false"
         ></textarea>
       </div>
@@ -329,14 +329,14 @@ const loadSample = () => {
       <!-- Toolbar bottom of input card -->
       <div class="input-card-footer">
         <div class="char-stats">
-          <span>{{ inputText.length }} caracteres</span>
+          <span>{{ inputText.length }} characters</span>
           <span>•</span>
           <span>{{ inputByteSize }} bytes</span>
         </div>
 
         <div class="input-actions">
-          <button class="btn btn-secondary btn-sm" @click="loadSample">Cargar Ejemplo</button>
-          <button v-if="inputText" class="btn btn-secondary btn-sm" @click="clearInput">Limpiar</button>
+          <button class="btn btn-secondary btn-sm" @click="loadSample">Load Sample</button>
+          <button v-if="inputText" class="btn btn-secondary btn-sm" @click="clearInput">Clear</button>
         </div>
       </div>
     </div>
@@ -358,7 +358,7 @@ const loadSample = () => {
             <span class="card-badge">{{ card.badge }}</span>
             <button
               class="btn-icon-copy"
-              title="Copiar resultado"
+              title="Copy result"
               :disabled="!card.output || card.output.startsWith('⚠️')"
               @click="copyCard(card)"
             >
@@ -375,7 +375,7 @@ const loadSample = () => {
               'is-empty': !card.output 
             }"
           >
-            {{ card.output || 'Sin datos de entrada' }}
+            {{ card.output || 'No input data' }}
           </div>
         </div>
       </div>
@@ -419,8 +419,8 @@ const loadSample = () => {
 
 .header-icon {
   font-size: 1.8rem;
-  color: var(--neon-cyan);
-  filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.4));
+  color: var(--neon-red);
+  filter: drop-shadow(0 0 12px rgba(255, 30, 66, 0.5));
 }
 
 .header-title {
@@ -439,7 +439,7 @@ const loadSample = () => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
   padding: 0.4rem 0.85rem;
   border-radius: 50px;
   border: 1px solid var(--border-color);
@@ -453,8 +453,8 @@ const loadSample = () => {
 }
 
 .mode-label.active {
-  color: var(--neon-cyan);
-  text-shadow: var(--shadow-cyan);
+  color: var(--neon-red);
+  text-shadow: var(--shadow-red);
 }
 
 .switch-btn {
@@ -473,8 +473,8 @@ const loadSample = () => {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--neon-cyan);
-  box-shadow: var(--shadow-cyan);
+  background: var(--neon-red);
+  box-shadow: var(--shadow-red);
   position: absolute;
   top: 2px;
   left: 3px;
@@ -482,14 +482,14 @@ const loadSample = () => {
 }
 
 .switch-btn.decode {
-  background: rgba(255, 0, 127, 0.15);
-  border-color: var(--border-glow-pink);
+  background: rgba(255, 30, 66, 0.15);
+  border-color: var(--border-glow-red);
 }
 
 .switch-btn.decode .switch-ball {
   left: 23px;
-  background: var(--neon-pink);
-  box-shadow: var(--shadow-pink);
+  background: var(--neon-ruby);
+  box-shadow: var(--shadow-red);
 }
 
 .textarea-wrapper {
@@ -513,8 +513,8 @@ const loadSample = () => {
 
 .cipher-textarea:focus {
   outline: none;
-  border-color: var(--neon-cyan);
-  box-shadow: var(--shadow-cyan);
+  border-color: var(--neon-red);
+  box-shadow: var(--shadow-red);
 }
 
 .input-card-footer {
@@ -541,7 +541,7 @@ const loadSample = () => {
   font-size: 0.75rem;
 }
 
-/* 3-Max Column Grid Layout */
+/* 3-Column Maximum Grid Layout */
 .cipher-grid {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
@@ -573,14 +573,14 @@ const loadSample = () => {
 }
 
 .cipher-card:hover {
-  border-color: var(--border-glow-cyan);
-  background: rgba(22, 28, 61, 0.7);
+  border-color: var(--border-glow-red);
+  background: rgba(28, 15, 24, 0.7);
   transform: translateY(-2px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
 .is-hash-card {
-  border-left: 3px solid var(--neon-purple);
+  border-left: 3px solid var(--neon-ruby);
 }
 
 .card-header {
@@ -638,9 +638,9 @@ const loadSample = () => {
 }
 
 .btn-icon-copy:hover:not(:disabled) {
-  background: rgba(0, 240, 255, 0.12);
-  color: var(--neon-cyan);
-  border-color: var(--neon-cyan);
+  background: rgba(255, 30, 66, 0.15);
+  color: var(--neon-red);
+  border-color: var(--neon-red);
   transform: scale(1.05);
 }
 

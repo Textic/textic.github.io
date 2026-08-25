@@ -11,44 +11,44 @@ const tools: ToolLink[] = [
   {
     title: 'CyberChef',
     icon: '🍳',
-    tag: 'GCHQ / Security',
+    tag: 'Security & Forensics',
     url: 'https://gchq.github.io/CyberChef/',
-    description: 'La "navaja suiza cibernética". Herramienta web para cifrado, codificación (Base64, Hex), compresión, hashing y análisis forense de datos.'
+    description: 'The "Cyber Swiss Army Knife". A web app for encryption, encoding, compression, data parsing, and forensic analysis.'
   },
   {
     title: 'DevDocs',
     icon: '📚',
-    tag: 'Documentación',
+    tag: 'Documentation',
     url: 'https://devdocs.io/',
-    description: 'Combina múltiples documentaciones de APIs y lenguajes (HTML, CSS, JS, Vue, Python, Docker) en una interfaz veloz con búsqueda instantánea y soporte offline.'
+    description: 'Combines multiple API documentations (HTML, CSS, JS, Vue, TypeScript, Python, Docker) in a fast, search-focused, offline-capable interface.'
   },
   {
     title: 'RegExr',
     icon: '🔍',
     tag: 'RegEx Tool',
     url: 'https://regexr.com/',
-    description: 'Aprende, construye, prueba y depura expresiones regulares con resaltado de coincidencias en tiempo real y chuleta explicativa.'
+    description: 'An online tool to learn, build, test, and debug Regular Expressions with real-time match highlighting and reference cheat sheets.'
   },
   {
     title: 'Ray.so',
     icon: '📸',
     tag: 'Code Snippets',
     url: 'https://ray.so/',
-    description: 'Genera imágenes elegantes y profesionales de fragmentos de código con fondos degradados listos para compartir.'
+    description: 'Create beautiful, shareable screenshots of your code snippets with customizable gradient backgrounds and dark themes.'
   },
   {
     title: 'Can I Use',
     icon: '🌐',
     tag: 'Web Standards',
     url: 'https://caniuse.com/',
-    description: 'Tablas actualizadas de compatibilidad de características de HTML5, CSS y Web APIs en todos los navegadores modernos y móviles.'
+    description: 'Up-to-date browser support tables for modern frontend web technologies, HTML5 features, and CSS properties across desktop and mobile.'
   },
   {
     title: 'Transform Tools',
     icon: '⚡',
-    tag: 'Converters',
+    tag: 'Code Converters',
     url: 'https://transform.tools/',
-    description: 'Conversor políglota para desarrolladores: JSON a TypeScript, SVG a JSX, CSS a JS, GraphQL a TypeScript y más.'
+    description: 'Polyglot web converter for developers: JSON to TypeScript, SVG to JSX, CSS to JS, GraphQL to TypeScript, and more.'
   }
 ]
 </script>
@@ -72,8 +72,8 @@ const tools: ToolLink[] = [
         <span class="url-text">{{ tool.url.replace(/^https?:\/\//, '') }}</span>
       </div>
 
-      <a :href="tool.url" target="_blank" rel="noopener noreferrer" class="btn btn-cyan open-btn">
-        <span>Abrir {{ tool.title }}</span>
+      <a :href="tool.url" target="_blank" rel="noopener noreferrer" class="btn btn-red open-btn">
+        <span>Open {{ tool.title }}</span>
         <span>↗</span>
       </a>
     </div>
@@ -99,10 +99,10 @@ const tools: ToolLink[] = [
 }
 
 .link-card:hover {
-  border-color: var(--border-glow-cyan);
-  background: rgba(22, 28, 61, 0.75);
+  border-color: var(--border-glow-red);
+  background: rgba(28, 15, 24, 0.75);
   transform: translateY(-3px);
-  box-shadow: var(--shadow-cyan), 0 15px 35px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-red), 0 15px 35px rgba(0, 0, 0, 0.4);
 }
 
 .card-header {
@@ -116,8 +116,8 @@ const tools: ToolLink[] = [
   width: 44px;
   height: 44px;
   border-radius: var(--radius-md);
-  background: rgba(0, 240, 255, 0.06);
-  border: 1px solid var(--border-glow-cyan);
+  background: rgba(255, 30, 66, 0.08);
+  border: 1px solid var(--border-glow-red);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -127,9 +127,9 @@ const tools: ToolLink[] = [
 .card-tag {
   font-size: 0.7rem;
   font-weight: 700;
-  color: var(--neon-pink);
-  background: rgba(255, 0, 127, 0.08);
-  border: 1px solid rgba(255, 0, 127, 0.25);
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.08);
+  border: 1px solid rgba(255, 30, 66, 0.25);
   padding: 0.2rem 0.6rem;
   border-radius: 50px;
   text-transform: uppercase;
@@ -152,7 +152,7 @@ const tools: ToolLink[] = [
 }
 
 .url-badge {
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-sm);
   padding: 0.45rem 0.75rem;
@@ -162,7 +162,7 @@ const tools: ToolLink[] = [
 .url-text {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: #a5b4fc;
+  color: #fda4af;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

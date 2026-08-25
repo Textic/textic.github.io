@@ -108,23 +108,23 @@ const applyPreset = (preset: 'pin' | 'readable' | 'secure' | 'ultra') => {
 
 const strengthInfo = computed(() => {
   if (entropyBits.value === 0) {
-    return { label: 'Ninguna', percent: 0, color: 'var(--neon-pink)' }
+    return { label: 'None', percent: 0, color: 'var(--neon-red)' }
   }
   if (entropyBits.value < 40) {
-    return { label: 'Débil (Vulnerable)', percent: 25, color: '#ef4444' }
+    return { label: 'Weak (Vulnerable)', percent: 25, color: '#ef4444' }
   }
   if (entropyBits.value < 65) {
-    return { label: 'Media (Aceptable)', percent: 50, color: '#f59e0b' }
+    return { label: 'Medium (Fair)', percent: 50, color: '#f59e0b' }
   }
   if (entropyBits.value < 90) {
-    return { label: 'Fuerte (Segura)', percent: 75, color: '#a855f7' }
+    return { label: 'Strong (Secure)', percent: 75, color: '#e11d48' }
   }
-  return { label: 'Ultra Fuerte (Militar)', percent: 100, color: '#10b981' }
+  return { label: 'Very Strong (Military Grade)', percent: 100, color: '#10b981' }
 })
 
 const copyCurrentPassword = () => {
   if (password.value) {
-    copyToClipboard(password.value, '¡Contraseña copiada al portapapeles!')
+    copyToClipboard(password.value, 'Password copied to clipboard!')
   }
 }
 
@@ -144,17 +144,17 @@ onMounted(() => {
     </div>
 
     <p class="util-desc">
-      Generador criptográficamente seguro con cálculo de entropía de Shannon directamente en tu navegador.
+      Generates cryptographically secure random passwords with real-time Shannon entropy calculation in your browser.
     </p>
 
     <!-- Password Display Output -->
     <div class="passgen-output-container">
       <div class="passgen-output" :class="{ empty: !password }">
-        {{ password || 'Selecciona al menos un grupo de caracteres' }}
+        {{ password || 'Select at least one character set' }}
       </div>
       <button
         class="btn-icon passgen-btn-copy"
-        title="Copiar Contraseña"
+        title="Copy Password"
         :disabled="!password"
         @click="copyCurrentPassword"
       >
@@ -165,7 +165,7 @@ onMounted(() => {
     <!-- Strength Meter -->
     <div class="strength-box">
       <div class="strength-text">
-        <span>Nivel de Seguridad:</span>
+        <span>Security Strength:</span>
         <span :style="{ color: strengthInfo.color, fontWeight: '700' }">{{ strengthInfo.label }}</span>
       </div>
       <div class="strength-meter-bar">
@@ -180,15 +180,15 @@ onMounted(() => {
     <div class="presets-row">
       <span class="presets-label">Presets:</span>
       <button class="preset-btn" @click="applyPreset('pin')">PIN (6)</button>
-      <button class="preset-btn" @click="applyPreset('readable')">Legible (14)</button>
-      <button class="preset-btn" @click="applyPreset('secure')">Seguro (20)</button>
+      <button class="preset-btn" @click="applyPreset('readable')">Readable (14)</button>
+      <button class="preset-btn" @click="applyPreset('secure')">Secure (20)</button>
       <button class="preset-btn" @click="applyPreset('ultra')">Ultra (32)</button>
     </div>
 
     <!-- Length Slider -->
     <div class="control-group">
       <div class="control-label-row">
-        <span>Longitud de Caracteres</span>
+        <span>Character Length</span>
         <span class="length-display">{{ length }}</span>
       </div>
       <input
@@ -204,29 +204,29 @@ onMounted(() => {
     <div class="checkbox-grid">
       <label class="checkbox-label">
         <input v-model="includeUpper" type="checkbox" @change="generatePassword" />
-        <span>Mayúsculas (A-Z)</span>
+        <span>Uppercase letters (A-Z)</span>
       </label>
       <label class="checkbox-label">
         <input v-model="includeLower" type="checkbox" @change="generatePassword" />
-        <span>Minúsculas (a-z)</span>
+        <span>Lowercase letters (a-z)</span>
       </label>
       <label class="checkbox-label">
         <input v-model="includeNumbers" type="checkbox" @change="generatePassword" />
-        <span>Números (0-9)</span>
+        <span>Numbers (0-9)</span>
       </label>
       <label class="checkbox-label">
         <input v-model="includeSymbols" type="checkbox" @change="generatePassword" />
-        <span>Símbolos (!@#$%)</span>
+        <span>Special symbols (!@#$%)</span>
       </label>
       <label class="checkbox-label" style="grid-column: 1 / -1;">
         <input v-model="excludeAmbiguous" type="checkbox" @change="generatePassword" />
-        <span>Evitar caracteres ambiguos (1, l, I, 0, O)</span>
+        <span>Avoid ambiguous characters (1, l, I, 0, O)</span>
       </label>
     </div>
 
     <!-- Action Button -->
-    <button class="btn btn-cyan btn-generate" @click="generatePassword">
-      <span>🔄</span> Generar Nueva Contraseña
+    <button class="btn btn-red btn-generate" @click="generatePassword">
+      <span>🔄</span> Generate New Password
     </button>
   </div>
 </template>
@@ -245,8 +245,8 @@ onMounted(() => {
 }
 
 .util-card:hover {
-  border-color: var(--border-glow-cyan);
-  background: rgba(22, 28, 61, 0.7);
+  border-color: var(--border-glow-red);
+  background: rgba(28, 15, 24, 0.7);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
@@ -266,7 +266,7 @@ onMounted(() => {
 
 .util-title-icon {
   font-size: 1.3rem;
-  color: var(--neon-cyan);
+  color: var(--neon-red);
 }
 
 .util-title-text {
@@ -277,9 +277,9 @@ onMounted(() => {
 .entropy-badge {
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--neon-cyan);
-  background: rgba(0, 240, 255, 0.08);
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.08);
+  border: 1px solid rgba(255, 30, 66, 0.3);
   padding: 0.2rem 0.6rem;
   border-radius: 50px;
 }
@@ -292,7 +292,7 @@ onMounted(() => {
 
 .passgen-output-container {
   position: relative;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 0.9rem 3.2rem 0.9rem 1.1rem;
@@ -304,7 +304,7 @@ onMounted(() => {
 .passgen-output {
   font-family: var(--font-mono);
   font-size: 1.1rem;
-  color: #f1f5f9;
+  color: #fdf8f9;
   overflow-x: auto;
   white-space: nowrap;
   width: 100%;
@@ -376,8 +376,8 @@ onMounted(() => {
 }
 
 .preset-btn:hover {
-  background: rgba(0, 240, 255, 0.08);
-  border-color: var(--neon-cyan);
+  background: rgba(255, 30, 66, 0.12);
+  border-color: var(--neon-red);
   color: white;
 }
 
@@ -397,7 +397,7 @@ onMounted(() => {
 
 .length-display {
   font-weight: 700;
-  color: var(--neon-cyan);
+  color: var(--neon-red);
   font-family: var(--font-mono);
 }
 
@@ -418,7 +418,7 @@ onMounted(() => {
 }
 
 .checkbox-label input[type="checkbox"] {
-  accent-color: var(--neon-cyan);
+  accent-color: var(--neon-red);
   width: 16px;
   height: 16px;
 }

@@ -25,7 +25,7 @@ const validateJson = () => {
     if (err instanceof Error) {
       parseError.value = err.message
     } else {
-      parseError.value = 'Sintaxis JSON inválida'
+      parseError.value = 'Invalid JSON syntax'
     }
   }
 }
@@ -38,9 +38,9 @@ const formatJson = () => {
     const parsed = JSON.parse(text)
     rawJson.value = JSON.stringify(parsed, null, 2)
     validateJson()
-    showToast('JSON formateado correctamente con sangría')
+    showToast('JSON formatted successfully (2 spaces)')
   } catch {
-    showToast('Error: No se pudo formatear el JSON (sintaxis inválida)', 'error')
+    showToast('Error: Could not format JSON (invalid syntax)', 'error')
   }
 }
 
@@ -52,15 +52,15 @@ const minifyJson = () => {
     const parsed = JSON.parse(text)
     rawJson.value = JSON.stringify(parsed)
     validateJson()
-    showToast('JSON minificado')
+    showToast('JSON minified')
   } catch {
-    showToast('Error: No se pudo minificar el JSON (sintaxis inválida)', 'error')
+    showToast('Error: Could not minify JSON (invalid syntax)', 'error')
   }
 }
 
 const copyJson = () => {
   if (rawJson.value.trim()) {
-    copyToClipboard(rawJson.value, '¡JSON copiado al portapapeles!')
+    copyToClipboard(rawJson.value, 'JSON copied to clipboard!')
   }
 }
 
@@ -73,7 +73,8 @@ const loadSample = () => {
   rawJson.value = JSON.stringify({
     project: "Textic Arcade & Sandbox",
     version: "2.0.0",
-    features: ["PassFort", "JSON Clean", "Cyber Snake", "Typing Blitz"],
+    theme: "Dark & Crimson Red",
+    features: ["CipherLab", "PassFort", "JSON Clean", "Cyber Snake", "Typing Blitz"],
     active: true,
     stats: {
       stars: 42,
@@ -81,7 +82,7 @@ const loadSample = () => {
     }
   }, null, 2)
   validateJson()
-  showToast('Ejemplo JSON cargado')
+  showToast('JSON sample loaded')
 }
 
 const stats = computed(() => {
@@ -104,14 +105,14 @@ const stats = computed(() => {
         <h3 class="util-title-text">JSON Clean</h3>
       </div>
       <div class="stats-badge">
-        <span>{{ stats.lines }} líneas</span>
+        <span>{{ stats.lines }} lines</span>
         <span>•</span>
         <span>{{ stats.bytes }}</span>
       </div>
     </div>
 
     <p class="util-desc">
-      Valida sintaxis en tiempo real, embellece y minifica objetos y arrays JSON al instante.
+      Validates JSON syntax in real-time, beautifies with standard indentation, and minifies data payloads.
     </p>
 
     <!-- Editor Textarea -->
@@ -119,7 +120,7 @@ const stats = computed(() => {
       <textarea
         v-model="rawJson"
         class="json-textarea"
-        placeholder="Pega o escribe tu JSON aquí para analizarlo..."
+        placeholder="Paste or type raw JSON here to inspect..."
         spellcheck="false"
         @input="validateJson"
       ></textarea>
@@ -128,31 +129,31 @@ const stats = computed(() => {
     <!-- Status Feedback Row -->
     <div class="status-row">
       <div v-if="isValid === true" class="status-tag status-ok">
-        ● JSON Válido
+        ● Valid JSON
       </div>
       <div v-else-if="isValid === false" class="status-tag status-err">
         ● {{ parseError }}
       </div>
       <div v-else class="status-tag status-idle">
-        Esperando entrada...
+        Waiting for input...
       </div>
 
       <div class="sample-actions">
-        <button class="text-action-btn" @click="loadSample">Cargar ejemplo</button>
-        <button v-if="rawJson" class="text-action-btn" @click="clearJson">Limpiar</button>
+        <button class="text-action-btn" @click="loadSample">Load Sample</button>
+        <button v-if="rawJson" class="text-action-btn" @click="clearJson">Clear</button>
       </div>
     </div>
 
     <!-- Action Toolbar -->
     <div class="action-toolbar">
       <button class="btn btn-secondary action-btn" :disabled="!rawJson" @click="minifyJson">
-        Minificar
+        Minify
       </button>
       <button class="btn btn-secondary action-btn" :disabled="!rawJson" @click="formatJson">
-        Formatear (2 spaces)
+        Format (2 spaces)
       </button>
-      <button class="btn btn-cyan action-btn copy-btn" :disabled="!rawJson" @click="copyJson">
-        📋 Copiar
+      <button class="btn btn-red action-btn copy-btn" :disabled="!rawJson" @click="copyJson">
+        📋 Copy
       </button>
     </div>
   </div>
@@ -172,8 +173,8 @@ const stats = computed(() => {
 }
 
 .util-card:hover {
-  border-color: var(--border-glow-cyan);
-  background: rgba(22, 28, 61, 0.7);
+  border-color: var(--border-glow-red);
+  background: rgba(28, 15, 24, 0.7);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
@@ -193,7 +194,7 @@ const stats = computed(() => {
 
 .util-title-icon {
   font-size: 1.3rem;
-  color: var(--neon-cyan);
+  color: var(--neon-red);
 }
 
 .util-title-text {
@@ -228,7 +229,7 @@ const stats = computed(() => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 1.1rem;
-  color: #f1f5f9;
+  color: #fdf8f9;
   font-family: var(--font-mono);
   font-size: 0.9rem;
   line-height: 1.6;
@@ -238,8 +239,8 @@ const stats = computed(() => {
 
 .json-textarea:focus {
   outline: none;
-  border-color: var(--neon-cyan);
-  box-shadow: var(--shadow-cyan);
+  border-color: var(--neon-red);
+  box-shadow: var(--shadow-red);
 }
 
 .status-row {
@@ -258,7 +259,7 @@ const stats = computed(() => {
 }
 
 .status-ok { color: var(--neon-green); }
-.status-err { color: #ef4444; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-err { color: #ef4444; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-idle { color: var(--text-muted); }
 
 .sample-actions {
@@ -277,7 +278,7 @@ const stats = computed(() => {
 }
 
 .text-action-btn:hover {
-  color: var(--neon-cyan);
+  color: var(--neon-red);
 }
 
 .action-toolbar {

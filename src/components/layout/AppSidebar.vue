@@ -52,14 +52,14 @@ const categories = ref<NavCategory[]>([
     icon: '🛠️',
     isOpen: true,
     items: [
-      { id: 'dev-cipher', label: 'CipherLab (Encoder)', icon: '⚡', badge: 'CRYPTO' },
+      { id: 'dev-cipher', label: 'CipherLab', icon: '⚡', badge: 'CRYPTO' },
       { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' }
     ]
   },
   {
     id: 'resources',
-    title: 'Recursos & CDN',
+    title: 'Resources & CDN',
     icon: '🌐',
     isOpen: true,
     items: [
@@ -106,7 +106,7 @@ const selectItem = (id: ActiveViewId) => {
 
       <button 
         class="collapse-toggle-btn desktop-only" 
-        :title="isCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+        :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         @click="emit('update:isCollapsed', !isCollapsed)"
       >
         <span>{{ isCollapsed ? '▶' : '◀' }}</span>
@@ -114,6 +114,7 @@ const selectItem = (id: ActiveViewId) => {
 
       <button 
         class="mobile-close-btn mobile-only" 
+        aria-label="Close sidebar"
         @click="emit('close-mobile')"
       >
         ✕
@@ -376,9 +377,9 @@ const selectItem = (id: ActiveViewId) => {
   font-family: var(--font-mono);
   font-size: 0.6rem;
   font-weight: 700;
-  color: var(--neon-pink);
-  background: rgba(255, 0, 127, 0.1);
-  border: 1px solid rgba(255, 0, 127, 0.3);
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.12);
+  border: 1px solid rgba(255, 30, 66, 0.3);
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   letter-spacing: 0.05em;
@@ -402,7 +403,7 @@ const selectItem = (id: ActiveViewId) => {
 }
 
 .sidebar-footer-link:hover {
-  color: var(--neon-cyan);
+  color: var(--neon-red);
   background: rgba(255, 255, 255, 0.03);
 }
 

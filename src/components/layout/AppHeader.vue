@@ -6,8 +6,8 @@
     </div>
     <h1 class="main-title">Developer Arcade</h1>
     <p class="subtitle">
-      Un espacio de trabajo retro-futurista con mini-juegos arcade y utilidades esenciales para desarrolladores.
-      Tus archivos estáticos se sirven como CDN en segundo plano.
+      A retro-futuristic workspace featuring arcade games and essential developer utilities.
+      Your static files are served as a public CDN in the background.
     </p>
   </header>
 </template>
@@ -25,15 +25,15 @@
   gap: 0.5rem;
   padding: 0.35rem 1.1rem;
   border-radius: 50px;
-  border: 1px solid var(--border-glow-pink);
-  background: rgba(255, 0, 127, 0.06);
-  color: var(--neon-pink);
+  border: 1px solid var(--border-glow-red);
+  background: rgba(255, 30, 66, 0.08);
+  color: var(--neon-red);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 1.25rem;
-  box-shadow: var(--shadow-pink);
+  box-shadow: var(--shadow-red);
   backdrop-filter: blur(10px);
 }
 

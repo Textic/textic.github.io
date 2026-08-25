@@ -235,27 +235,27 @@ const triggerGameOver = () => {
         <div class="overlay-badge">ARCADE EDITION</div>
         <h3 class="overlay-title">CYBER SNAKE</h3>
         <p class="overlay-desc">
-          Recolecta los nodos de energía neón. Evita chocar contra los límites del tablero y tu propio cuerpo.
+          Eat neon energy nodes. Avoid structural walls and self-collision.
         </p>
         <div class="overlay-keys">
-          <span>Controles:</span>
-          <code>WASD</code> o <code>Flechas</code>
+          <span>Controls:</span>
+          <code>WASD</code> or <code>Arrows</code>
         </div>
-        <button class="btn btn-cyan" @click="startGame">
-          <span>🪙</span> Insert Coin & Jugar
+        <button class="btn btn-red" @click="startGame">
+          <span>🪙</span> Insert Coin & Play
         </button>
       </div>
 
       <!-- Overlay: Game Over -->
       <div v-else-if="isGameOver" class="overlay-screen gameover">
         <h3 class="overlay-title gameover-text">GAME OVER</h3>
-        <p class="overlay-desc">Colisión estructural detectada.</p>
+        <p class="overlay-desc">Structural wall collision detected.</p>
         <div class="final-score-box">
-          <span>PUNTUACIÓN FINAL:</span>
+          <span>FINAL SCORE:</span>
           <span class="final-score-val">{{ score }}</span>
         </div>
-        <button class="btn btn-pink" @click="startGame">
-          <span>🔄</span> Jugar de Nuevo
+        <button class="btn btn-red" @click="startGame">
+          <span>🔄</span> Play Again
         </button>
       </div>
 
@@ -297,7 +297,7 @@ const triggerGameOver = () => {
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
-  background: #03040b;
+  background: #070507;
 }
 
 /* CRT scanlines effect */
@@ -321,7 +321,7 @@ const triggerGameOver = () => {
 .overlay-screen {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(4, 6, 18, 0.92);
+  background: rgba(7, 5, 7, 0.94);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -334,9 +334,9 @@ const triggerGameOver = () => {
 .overlay-badge {
   font-family: var(--font-retro);
   font-size: 0.6rem;
-  color: var(--neon-cyan);
-  background: rgba(0, 240, 255, 0.1);
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.1);
+  border: 1px solid rgba(255, 30, 66, 0.3);
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
   margin-bottom: 0.75rem;
@@ -345,15 +345,15 @@ const triggerGameOver = () => {
 .overlay-title {
   font-family: var(--font-retro);
   font-size: 1.4rem;
-  color: var(--neon-cyan);
-  text-shadow: var(--shadow-cyan);
+  color: var(--neon-red);
+  text-shadow: var(--shadow-red);
   margin-bottom: 0.75rem;
   letter-spacing: 0.05em;
 }
 
 .gameover-text {
-  color: var(--neon-pink);
-  text-shadow: var(--shadow-pink-strong);
+  color: var(--neon-crimson);
+  text-shadow: var(--shadow-red-strong);
   animation: pulse 1.2s infinite;
 }
 
@@ -376,7 +376,7 @@ const triggerGameOver = () => {
 
 .overlay-keys code {
   font-family: var(--font-mono);
-  color: var(--neon-cyan);
+  color: var(--neon-red);
   background: rgba(255, 255, 255, 0.05);
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
@@ -394,8 +394,8 @@ const triggerGameOver = () => {
 
 .final-score-val {
   font-size: 1.5rem;
-  color: var(--neon-pink);
-  text-shadow: var(--shadow-pink);
+  color: var(--neon-red);
+  text-shadow: var(--shadow-red);
 }
 
 .snake-stats-bar {
@@ -425,14 +425,14 @@ const triggerGameOver = () => {
 }
 
 .stat-value {
-  color: var(--neon-cyan);
+  color: var(--neon-red);
   font-size: 0.85rem;
-  text-shadow: var(--shadow-cyan);
+  text-shadow: var(--shadow-red);
 }
 
 .hi-score .stat-value {
-  color: var(--neon-pink);
-  text-shadow: var(--shadow-pink);
+  color: var(--neon-ruby);
+  text-shadow: var(--shadow-red);
 }
 
 @keyframes pulse {

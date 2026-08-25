@@ -23,9 +23,9 @@ const getViewMetadata = (id: ActiveViewId) => {
     case 'dev-cipher':
       return { category: 'Dev Utilities', title: 'CipherLab (Encoder & Decoder)', icon: '⚡', tag: 'MULTI-CIPHER' }
     case 'links-tools':
-      return { category: 'Recursos', title: 'Useful Developer Tools', icon: '🔗', tag: 'DIRECTORY' }
+      return { category: 'Resources', title: 'Useful Developer Tools', icon: '🔗', tag: 'DIRECTORY' }
     case 'cdn-endpoints':
-      return { category: 'Recursos', title: 'CDN & Static Asset Endpoints', icon: '📡', tag: 'PUBLIC REPO API' }
+      return { category: 'Resources', title: 'CDN & Static Asset Endpoints', icon: '📡', tag: 'PUBLIC REPO API' }
   }
 }
 </script>
@@ -36,7 +36,7 @@ const getViewMetadata = (id: ActiveViewId) => {
       <!-- Mobile hamburger trigger -->
       <button 
         class="mobile-menu-btn mobile-only" 
-        title="Abrir menú de navegación"
+        title="Open navigation menu"
         @click="emit('toggle-mobile-sidebar')"
       >
         <span>☰</span>
@@ -59,7 +59,7 @@ const getViewMetadata = (id: ActiveViewId) => {
       <button 
         v-if="activeView !== 'cdn-endpoints'"
         class="btn btn-secondary btn-cdn-quick"
-        title="Ver endpoints de archivos estáticos"
+        title="View static file CDN endpoints"
         @click="emit('open-cdn')"
       >
         <span>📡</span>
@@ -71,7 +71,7 @@ const getViewMetadata = (id: ActiveViewId) => {
         target="_blank" 
         rel="noopener noreferrer" 
         class="btn-icon github-btn"
-        title="Ver código fuente en GitHub"
+        title="View source code on GitHub"
       >
         🐙
       </a>
@@ -116,8 +116,8 @@ const getViewMetadata = (id: ActiveViewId) => {
 }
 
 .mobile-menu-btn:hover {
-  background: rgba(0, 240, 255, 0.1);
-  border-color: var(--neon-cyan);
+  background: rgba(255, 30, 66, 0.12);
+  border-color: var(--neon-red);
 }
 
 .breadcrumb-box {
@@ -160,9 +160,9 @@ const getViewMetadata = (id: ActiveViewId) => {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   font-weight: 700;
-  color: var(--neon-cyan);
-  background: rgba(0, 240, 255, 0.08);
-  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.08);
+  border: 1px solid rgba(255, 30, 66, 0.3);
   padding: 0.25rem 0.65rem;
   border-radius: 4px;
   letter-spacing: 0.06em;

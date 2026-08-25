@@ -37,6 +37,16 @@ interface NavCategory {
 
 const categories = ref<NavCategory[]>([
   {
+    id: 'arcade',
+    title: 'Arcade Games',
+    icon: '🎮',
+    isOpen: true,
+    items: [
+      { id: 'arcade-typing', label: 'Typing Blitz', icon: '⌨️', badge: 'PRO' },
+      { id: 'arcade-snake', label: 'Cyber Snake', icon: '🐍', badge: 'CANVAS' }
+    ]
+  },
+  {
     id: 'devtools',
     title: 'Dev Utilities',
     icon: '🛠️',
@@ -55,16 +65,6 @@ const categories = ref<NavCategory[]>([
     items: [
       { id: 'links-tools', label: 'Useful Pages', icon: '🔗' },
       { id: 'cdn-endpoints', label: 'CDN Endpoints', icon: '📡', badge: 'API' }
-    ]
-  },
-  {
-    id: 'arcade',
-    title: 'Arcade Games',
-    icon: '🎮',
-    isOpen: true,
-    items: [
-      { id: 'arcade-typing', label: 'Typing Blitz', icon: '⌨️', badge: 'PRO' },
-      { id: 'arcade-snake', label: 'Cyber Snake', icon: '🐍', badge: 'CANVAS' }
     ]
   }
 ])

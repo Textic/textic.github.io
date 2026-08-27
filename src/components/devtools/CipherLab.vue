@@ -31,21 +31,87 @@ const base64Result = computed(() => {
   }
 })
 
+// Helper: Base64 URL Safe encoding & decoding
+const toBase64Url = (str: string) => {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+const fromBase64Url = (str: string) => {
+  let b64 = str.trim().replace(/-/g, '+').replace(/_/g, '/')
+  while (b64.length % 4) b64 += '='
+  return decodeURIComponent(escape(atob(b64)))
+}
+
 // 2. Base64 URL Safe
 const base64UrlResult = computed(() => {
   const text = inputText.value
   if (!text) return ''
   try {
     if (mode.value === 'encode') {
-      const b64 = btoa(unescape(encodeURIComponent(text)))
-      return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+      return toBase64Url(text)
     } else {
-      let b64 = text.trim().replace(/-/g, '+').replace(/_/g, '/')
-      while (b64.length % 4) b64 += '='
-      return decodeURIComponent(escape(atob(b64)))
+      return fromBase64Url(text)
     }
   } catch {
     return '⚠️ Invalid Base64 URL string'
+  }
+})
+
+// 3. JWT (JSON Web Token) Decoder & Generator
+const jwtResult = computed(() => {
+  const text = inputText.value.trim()
+  if (!text) return ''
+
+  if (mode.value === 'encode') {
+    try {
+      let payloadObj: Record<string, unknown>
+      try {
+        payloadObj = JSON.parse(text)
+      } catch {
+        payloadObj = {
+          sub: '1234567890',
+          name: text,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 86400
+        }
+      }
+      const headerObj = { alg: 'HS256', typ: 'JWT' }
+      const encHeader = toBase64Url(JSON.stringify(headerObj))
+      const encPayload = toBase64Url(JSON.stringify(payloadObj))
+      const mockSignature = 'SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+      return `${encHeader}.${encPayload}.${mockSignature}`
+    } catch {
+      return '⚠️ Error generating JWT'
+    }
+  } else {
+    // Decode mode
+    try {
+      const parts = text.split('.')
+      if (parts.length < 2) {
+        return '⚠️ Invalid JWT format (expected header.payload.signature)'
+      }
+      const headerRaw = fromBase64Url(parts[0] ?? '')
+      const payloadRaw = fromBase64Url(parts[1] ?? '')
+      
+      const headerJson = JSON.parse(headerRaw)
+      const payloadJson = JSON.parse(payloadRaw)
+
+      let expStatus = ''
+      if (typeof payloadJson.exp === 'number') {
+        const expDate = new Date(payloadJson.exp * 1000)
+        const isExpired = Date.now() > payloadJson.exp * 1000
+        expStatus = isExpired
+          ? `\n🔴 STATUS: Expired (${expDate.toLocaleString()})`
+          : `\n🟢 STATUS: Active (Expires: ${expDate.toLocaleString()})`
+      }
+
+      return `HEADER:\n${JSON.stringify(headerJson, null, 2)}\n\nPAYLOAD:${expStatus}\n${JSON.stringify(payloadJson, null, 2)}`
+    } catch {
+      return '⚠️ Invalid JWT payload or malformed token'
+    }
   }
 })
 
@@ -247,14 +313,15 @@ interface CipherCard {
 const cards = computed<CipherCard[]>(() => {
   const list: CipherCard[] = [
     { id: 'b64', title: 'Base64', icon: '📦', badge: 'Standard', output: base64Result.value },
-    { id: 'b64url', title: 'Base64 URL-Safe', icon: '🔗', badge: 'RFC 4648', output: base64UrlResult.value },
     { id: 'hex', title: 'Hexadecimal', icon: '🔢', badge: 'Base16', output: hexResult.value },
     { id: 'bin', title: 'Binary', icon: '⚡', badge: '8-bit', output: binaryResult.value },
+    { id: 'morse', title: 'Morse Code', icon: '📻', badge: 'ITU', output: morseResult.value },
+    { id: 'jwt', title: 'JWT (JSON Web Token)', icon: '🛡️', badge: 'RFC 7519', output: jwtResult.value },
+    { id: 'b64url', title: 'Base64 URL-Safe', icon: '🔗', badge: 'RFC 4648', output: base64UrlResult.value },
     { id: 'url', title: 'URL Percent-Encoding', icon: '🌐', badge: 'URI', output: urlResult.value },
     { id: 'html', title: 'HTML Entities', icon: '🏷️', badge: 'Entities', output: htmlEntitiesResult.value },
     { id: 'rot13', title: 'ROT13', icon: '🌀', badge: 'Caesar', output: rot13Result.value },
     { id: 'atbash', title: 'Atbash Cipher', icon: '🔄', badge: 'A↔Z', output: atbashResult.value },
-    { id: 'morse', title: 'Morse Code', icon: '📻', badge: 'ITU', output: morseResult.value },
     { id: 'rev', title: 'Reversed Text', icon: '🪞', badge: 'Reverse', output: reverseResult.value },
   ]
 
@@ -664,9 +731,10 @@ const loadSample = () => {
   font-size: 0.82rem;
   color: var(--text-primary);
   word-break: break-all;
+  white-space: pre-wrap;
   line-height: 1.45;
   width: 100%;
-  max-height: 90px;
+  max-height: 110px;
   overflow-y: auto;
 }
 

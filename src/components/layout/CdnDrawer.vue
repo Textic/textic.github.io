@@ -36,9 +36,9 @@ const cdnFiles: CdnItem[] = [
     badge: '14.5 MB'
   },
   {
-    title: 'Gamer Nicknames',
+    title: 'Usernames',
     path: 'assets/names.json',
-    description: 'Curated list of gaming alias templates and usernames (~26 KB).',
+    description: 'Collection of usernames and name datasets for prototyping and testing (~26 KB).',
     badge: '26 KB'
   },
   {

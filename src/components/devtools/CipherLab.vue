@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import CryptoJS from 'crypto-js'
 import { useToast } from '@/composables/useToast'
 
 const { copyToClipboard, showToast } = useToast()
@@ -8,6 +9,7 @@ type Mode = 'encode' | 'decode'
 
 const mode = ref<Mode>('encode')
 const inputText = ref('')
+const aesKey = ref('textic-secret-key')
 
 // Async hashes state
 const sha256Hash = ref('')
@@ -112,6 +114,36 @@ const jwtResult = computed(() => {
     } catch {
       return '⚠️ Invalid JWT payload or malformed token'
     }
+  }
+})
+
+// 4. AES-ECB (Electronic Codebook Mode)
+const aesEcbResult = computed(() => {
+  const text = inputText.value
+  const key = aesKey.value
+  if (!text) return ''
+  if (!key) return '⚠️ Secret key is required'
+
+  try {
+    if (mode.value === 'encode') {
+      const encrypted = CryptoJS.AES.encrypt(text, key, {
+        mode: CryptoJS.mode.ECB,
+        padding: CryptoJS.pad.Pkcs7
+      })
+      return encrypted.toString() // Standard Base64 AES-ECB ciphertext
+    } else {
+      const decrypted = CryptoJS.AES.decrypt(text.trim(), key, {
+        mode: CryptoJS.mode.ECB,
+        padding: CryptoJS.pad.Pkcs7
+      })
+      const str = decrypted.toString(CryptoJS.enc.Utf8)
+      if (!str) {
+        return '⚠️ Decryption failed (invalid key or ciphertext)'
+      }
+      return str
+    }
+  } catch {
+    return '⚠️ Decryption failed (invalid ciphertext)'
   }
 })
 
@@ -308,6 +340,7 @@ interface CipherCard {
   badge: string
   output: string
   isHash?: boolean
+  hasKeyInput?: boolean
 }
 
 const cards = computed<CipherCard[]>(() => {
@@ -317,6 +350,7 @@ const cards = computed<CipherCard[]>(() => {
     { id: 'bin', title: 'Binary', icon: '⚡', badge: '8-bit', output: binaryResult.value },
     { id: 'morse', title: 'Morse Code', icon: '📻', badge: 'ITU', output: morseResult.value },
     { id: 'jwt', title: 'JWT (JSON Web Token)', icon: '🛡️', badge: 'RFC 7519', output: jwtResult.value },
+    { id: 'aes-ecb', title: 'AES-ECB', icon: '🔐', badge: 'PKCS7 / 128-256b', output: aesEcbResult.value, hasKeyInput: true },
     { id: 'b64url', title: 'Base64 URL-Safe', icon: '🔗', badge: 'RFC 4648', output: base64UrlResult.value },
     { id: 'url', title: 'URL Percent-Encoding', icon: '🌐', badge: 'URI', output: urlResult.value },
     { id: 'html', title: 'HTML Entities', icon: '🏷️', badge: 'Entities', output: htmlEntitiesResult.value },
@@ -432,6 +466,19 @@ const loadSample = () => {
               📋
             </button>
           </div>
+        </div>
+
+        <!-- Key Configuration Row (For AES-ECB) -->
+        <div v-if="card.hasKeyInput" class="card-key-row">
+          <span class="key-tag">🔑 Key:</span>
+          <input
+            v-model="aesKey"
+            type="text"
+            class="key-text-input"
+            placeholder="Secret key..."
+            spellcheck="false"
+            @click.stop
+          />
         </div>
 
         <div class="card-output-container">
@@ -746,5 +793,44 @@ const loadSample = () => {
 .card-output.has-error {
   color: #ef4444;
   font-size: 0.75rem;
+}
+
+/* Key Configuration Row for AES */
+.card-key-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.65rem;
+  transition: var(--transition);
+}
+
+.card-key-row:focus-within {
+  border-color: var(--neon-red);
+  box-shadow: 0 0 10px rgba(255, 30, 66, 0.2);
+}
+
+.key-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--neon-red);
+  white-space: nowrap;
+}
+
+.key-text-input {
+  background: transparent;
+  border: none;
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  outline: none;
+  width: 100%;
+}
+
+.key-text-input::placeholder {
+  color: var(--text-muted);
 }
 </style>

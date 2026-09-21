@@ -22,6 +22,8 @@ const getViewMetadata = (id: ActiveViewId) => {
       return { category: 'Dev Utilities', title: 'JSON Clean Formatter', icon: '💎', tag: 'VALIDATOR & MINIFIER' }
     case 'dev-cipher':
       return { category: 'Dev Utilities', title: 'CipherLab (Encoder & Decoder)', icon: '⚡', tag: 'MULTI-CIPHER' }
+    case 'skills-catalog':
+      return { category: 'Dev Utilities', title: 'Agent Skills Hub', icon: '⚡', tag: 'AI CLI SKILLS' }
     case 'links-tools':
       return { category: 'Resources', title: 'Useful Developer Tools', icon: '🔗', tag: 'DIRECTORY' }
     case 'cdn-endpoints':

@@ -10,6 +10,7 @@ import CyberSnake from '@/components/arcade/CyberSnake.vue'
 import TypingBlitz from '@/components/arcade/TypingBlitz.vue'
 import UsefulLinks from '@/components/links/UsefulLinks.vue'
 import CdnDrawer from '@/components/layout/CdnDrawer.vue'
+import SkillsHub from '@/components/skills/SkillsHub.vue'
 
 const VALID_VIEWS: ActiveViewId[] = [
   'arcade-typing',
@@ -17,6 +18,7 @@ const VALID_VIEWS: ActiveViewId[] = [
   'dev-cipher',
   'dev-passfort',
   'dev-json',
+  'skills-catalog',
   'links-tools',
   'cdn-endpoints'
 ]
@@ -138,6 +140,11 @@ onUnmounted(() => {
           <!-- 6. Static CDN Endpoints Reference -->
           <div v-else-if="activeView === 'cdn-endpoints'" key="cdn" class="view-wrapper">
             <CdnDrawer :alwaysOpen="true" />
+          </div>
+
+          <!-- 7. Agent Skills Catalog -->
+          <div v-else-if="activeView === 'skills-catalog'" key="skills" class="view-wrapper">
+            <SkillsHub />
           </div>
         </Transition>
       </main>

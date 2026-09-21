@@ -11,6 +11,7 @@ import TypingBlitz from '@/components/arcade/TypingBlitz.vue'
 import UsefulLinks from '@/components/links/UsefulLinks.vue'
 import CdnDrawer from '@/components/layout/CdnDrawer.vue'
 import SkillsHub from '@/components/skills/SkillsHub.vue'
+import WindowsDotfiles from '@/components/dev/WindowsDotfiles.vue'
 
 const VALID_VIEWS: ActiveViewId[] = [
   'arcade-typing',
@@ -18,6 +19,7 @@ const VALID_VIEWS: ActiveViewId[] = [
   'dev-cipher',
   'dev-passfort',
   'dev-json',
+  'dev-dotfiles',
   'skills-catalog',
   'links-tools',
   'cdn-endpoints'
@@ -145,6 +147,11 @@ onUnmounted(() => {
           <!-- 7. Agent Skills Catalog -->
           <div v-else-if="activeView === 'skills-catalog'" key="skills" class="view-wrapper">
             <SkillsHub />
+          </div>
+
+          <!-- 8. Windows Dotfiles & Dev Setup -->
+          <div v-else-if="activeView === 'dev-dotfiles'" key="dotfiles" class="view-wrapper">
+            <WindowsDotfiles />
           </div>
         </Transition>
       </main>

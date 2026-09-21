@@ -7,6 +7,7 @@ export type ActiveViewId =
   | 'dev-passfort' 
   | 'dev-json' 
   | 'dev-cipher'
+  | 'dev-dotfiles'
   | 'skills-catalog'
   | 'links-tools' 
   | 'cdn-endpoints'
@@ -56,6 +57,7 @@ const categories = ref<NavCategory[]>([
       { id: 'dev-cipher', label: 'CipherLab', icon: '⚡', badge: 'CRYPTO' },
       { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' },
+      { id: 'dev-dotfiles', label: 'Windows Dotfiles', icon: '🪟', badge: 'SETUP' },
       { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' }
     ]
   },

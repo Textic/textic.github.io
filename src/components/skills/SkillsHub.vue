@@ -209,15 +209,6 @@ const copySkillCommand = (skill: SkillItem) => {
       <p>No results matching "{{ searchQuery }}". Try clearing your search.</p>
       <button class="btn btn-secondary" @click="searchQuery = ''; selectedCategory = 'All'">Reset Search</button>
     </div>
-
-    <!-- Future Expansion Prompt Box -->
-    <div class="expansion-notice-card">
-      <div class="notice-icon">🚀</div>
-      <div class="notice-content">
-        <h4>Ready for More Skills</h4>
-        <p>Drop more skills in the chat anytime to append them to your catalog.</p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -637,32 +628,5 @@ const copySkillCommand = (skill: SkillItem) => {
 .empty-icon {
   font-size: 2.2rem;
   color: var(--text-muted);
-}
-
-/* Expansion Notice */
-.expansion-notice-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.25rem 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.notice-icon {
-  font-size: 1.6rem;
-}
-
-.notice-content h4 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: white;
-}
-
-.notice-content p {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin-top: 0.15rem;
 }
 </style>

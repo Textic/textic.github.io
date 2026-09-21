@@ -85,6 +85,26 @@ const generateCommand = (source: string): string => {
   return cmd
 }
 
+// Antigravity Bridge Fix State & Logic
+const selectedFixOs = ref<'windows' | 'unix'>('windows')
+const copiedFix = ref(false)
+
+const currentFixCommand = computed(() => {
+  if (selectedFixOs.value === 'windows') {
+    return 'New-Item -ItemType Junction -Force -Path "$HOME\\.gemini\\config\\skills" -Target "$HOME\\.agents\\skills"; \'{"entries":[{"path":"~/.agents/skills"}]}\' | Set-Content "$HOME\\.gemini\\config\\skills.json"'
+  }
+  return 'mkdir -p ~/.gemini/config ~/.agents/skills && ln -sfn ~/.agents/skills ~/.gemini/config/skills && echo \'{"entries":[{"path":"~/.agents/skills"}]}\' > ~/.gemini/config/skills.json'
+})
+
+const copyFixCommand = () => {
+  const osLabel = selectedFixOs.value === 'windows' ? 'Windows PowerShell' : 'macOS / Linux Bash'
+  copyToClipboard(currentFixCommand.value, `Copied Antigravity bridge fix for ${osLabel}!`)
+  copiedFix.value = true
+  setTimeout(() => {
+    copiedFix.value = false
+  }, 2000)
+}
+
 const categories = computed(() => {
   const cats = new Set<string>()
   skills.value.forEach(s => cats.add(s.category))
@@ -233,6 +253,52 @@ const copySkillCommand = (skill: SkillItem) => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Antigravity Global Bridge Banner (Appears when Antigravity is selected) -->
+      <div v-if="targetAgent === 'antigravity'" class="antigravity-fix-banner">
+        <div class="fix-header">
+          <div class="fix-title-group">
+            <span class="fix-badge">⚡ ANTIGRAVITY GLOBAL BRIDGE</span>
+            <h4 class="fix-title">Vincular Skills Globales con Google Antigravity</h4>
+          </div>
+          <div class="os-tabs">
+            <button
+              class="os-tab-btn"
+              :class="{ active: selectedFixOs === 'windows' }"
+              @click="selectedFixOs = 'windows'"
+            >
+              🪟 Windows (PowerShell)
+            </button>
+            <button
+              class="os-tab-btn"
+              :class="{ active: selectedFixOs === 'unix' }"
+              @click="selectedFixOs = 'unix'"
+            >
+              🍎 macOS / 🐧 Linux (Bash)
+            </button>
+          </div>
+        </div>
+
+        <p class="fix-desc">
+          La CLI oficial de Vercel Skills guarda las skills globales en <code>~/.agents/skills</code>. Ejecuta este comando de 1 línea una sola vez en tu terminal para sincronizarlas permanentemente con Google Antigravity (<code>.gemini/config/skills</code>):
+        </p>
+
+        <div class="fix-command-box" @click="copyFixCommand">
+          <div class="terminal-prompt">
+            <span class="prompt-symbol">$</span>
+            <code class="command-code">{{ currentFixCommand }}</code>
+          </div>
+          <button
+            class="btn-copy-cmd"
+            :class="{ copied: copiedFix }"
+            title="Copiar comando de vinculación"
+            @click.stop="copyFixCommand"
+          >
+            <span v-if="copiedFix">✓ Copiado</span>
+            <span v-else>📋 Copiar Fix</span>
+          </button>
         </div>
       </div>
     </div>
@@ -722,6 +788,129 @@ const copySkillCommand = (skill: SkillItem) => {
   border-color: var(--neon-red);
   color: white;
   box-shadow: 0 0 10px rgba(255, 30, 66, 0.25);
+}
+
+/* Antigravity Global Bridge Banner */
+.antigravity-fix-banner {
+  background: linear-gradient(135deg, rgba(255, 30, 66, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%);
+  border: 1px solid rgba(255, 30, 66, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  animation: fadeInDown 0.25s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fix-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.fix-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.fix-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.15);
+  border: 1px solid rgba(255, 30, 66, 0.35);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.fix-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.os-tabs {
+  display: flex;
+  gap: 0.35rem;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.2rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.os-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.os-tab-btn:hover {
+  color: #fff;
+}
+
+.os-tab-btn.active {
+  background: rgba(255, 30, 66, 0.2);
+  color: #fff;
+  border: 1px solid rgba(255, 30, 66, 0.4);
+}
+
+.fix-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.fix-desc code {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: #fb7185;
+  background: rgba(255, 30, 66, 0.1);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 30, 66, 0.2);
+}
+
+.fix-command-box {
+  background: #030204;
+  border: 1px solid rgba(255, 30, 66, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.fix-command-box:hover {
+  border-color: var(--neon-red);
+  background: rgba(0, 0, 0, 0.8);
 }
 
 /* Skills Grid */

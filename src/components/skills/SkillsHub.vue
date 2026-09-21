@@ -91,9 +91,9 @@ const copiedFix = ref(false)
 
 const currentFixCommand = computed(() => {
   if (selectedFixOs.value === 'windows') {
-    return 'New-Item -ItemType Junction -Force -Path "$HOME\\.gemini\\config\\skills" -Target "$HOME\\.agents\\skills"; \'{"entries":[{"path":"~/.agents/skills"}]}\' | Set-Content "$HOME\\.gemini\\config\\skills.json"'
+    return 'New-Item -ItemType Junction -Force -Path "$HOME\\.gemini\\config\\skills" -Target "$HOME\\.agents\\skills"'
   }
-  return 'mkdir -p ~/.gemini/config ~/.agents/skills && ln -sfn ~/.agents/skills ~/.gemini/config/skills && echo \'{"entries":[{"path":"~/.agents/skills"}]}\' > ~/.gemini/config/skills.json'
+  return 'mkdir -p ~/.gemini/config && ln -sfn ~/.agents/skills ~/.gemini/config/skills'
 })
 
 const copyFixCommand = () => {
@@ -213,13 +213,6 @@ const copySkillCommand = (skill: SkillItem) => {
           <!-- Flag Toggles -->
           <div class="control-section toggles-section">
             <span class="section-label">Options:</span>
-
-            <!-- Global Scope (Permanently Active) -->
-            <div class="toggle-pill locked-pill" title="Global mode is permanently active to install in ~/.agents/skills/ for all projects">
-              <span class="toggle-icon">🌐</span>
-              <span class="toggle-name">Global (-g)</span>
-              <span class="lock-indicator">ACTIVE</span>
-            </div>
 
             <!-- Auto-Accept (-y) Toggle -->
             <button
@@ -697,25 +690,6 @@ const copySkillCommand = (skill: SkillItem) => {
   font-size: 0.75rem;
   font-weight: 600;
   transition: var(--transition);
-}
-
-.locked-pill {
-  background: rgba(255, 30, 66, 0.1);
-  border: 1px solid rgba(255, 30, 66, 0.3);
-  color: #fff;
-  cursor: default;
-  user-select: none;
-}
-
-.lock-indicator {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  background: rgba(255, 30, 66, 0.22);
-  color: var(--neon-red);
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
 }
 
 .toggle-item-btn {

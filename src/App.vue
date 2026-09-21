@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import AppSidebar, { type ActiveViewId } from '@/components/layout/AppSidebar.vue'
 import TopNavbar from '@/components/layout/TopNavbar.vue'
 import ToastContainer from '@/components/layout/ToastContainer.vue'
@@ -11,9 +11,64 @@ import TypingBlitz from '@/components/arcade/TypingBlitz.vue'
 import UsefulLinks from '@/components/links/UsefulLinks.vue'
 import CdnDrawer from '@/components/layout/CdnDrawer.vue'
 
-const activeView = ref<ActiveViewId>('arcade-typing')
+const VALID_VIEWS: ActiveViewId[] = [
+  'arcade-typing',
+  'arcade-snake',
+  'dev-cipher',
+  'dev-passfort',
+  'dev-json',
+  'links-tools',
+  'cdn-endpoints'
+]
+
+const STORAGE_KEY = 'textic_active_view'
+
+// Initialize activeView from URL hash or localStorage
+const getInitialView = (): ActiveViewId => {
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash.replace(/^#\/?/, '') as ActiveViewId
+    if (VALID_VIEWS.includes(hash)) {
+      return hash
+    }
+
+    const saved = localStorage.getItem(STORAGE_KEY) as ActiveViewId | null
+    if (saved && VALID_VIEWS.includes(saved)) {
+      return saved
+    }
+  }
+
+  return 'arcade-typing'
+}
+
+const activeView = ref<ActiveViewId>(getInitialView())
 const isCollapsed = ref(false)
 const isMobileOpen = ref(false)
+
+// Persist view changes to localStorage and synchronize with URL hash
+watch(activeView, (newView) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, newView)
+    if (window.location.hash.replace(/^#\/?/, '') !== newView) {
+      window.location.hash = `#${newView}`
+    }
+  }
+}, { immediate: true })
+
+// Handle browser navigation (back / forward buttons)
+const onHashChange = () => {
+  const hash = window.location.hash.replace(/^#\/?/, '') as ActiveViewId
+  if (VALID_VIEWS.includes(hash) && activeView.value !== hash) {
+    activeView.value = hash
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('hashchange', onHashChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', onHashChange)
+})
 </script>
 
 <template>

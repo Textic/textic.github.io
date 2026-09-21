@@ -29,6 +29,17 @@ const skills = ref<SkillItem[]>([
     global: true,
     githubUrl: 'https://github.com/tt-a1i/archify',
     diagramTypes: ['Architecture', 'Workflows', 'Sequences', 'Data-Flow', 'Lifecycles']
+  },
+  {
+    id: 'textic-skills',
+    name: 'Textic Skills',
+    source: 'Textic/skills',
+    command: 'npx skills add Textic/skills -g',
+    category: 'Utilities & Tooling',
+    description: 'Official Textic AI agent skills pack providing curated workflows, automation utilities, and developer productivity tools.',
+    tags: ['Textic', 'Developer Tools', 'Workflows', 'Agent Skills', 'Automation'],
+    global: true,
+    githubUrl: 'https://github.com/Textic/skills'
   }
 ])
 

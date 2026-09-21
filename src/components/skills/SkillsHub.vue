@@ -47,6 +47,44 @@ const searchQuery = ref('')
 const selectedCategory = ref('All')
 const copiedCommandId = ref<string | null>(null)
 
+export type AgentId = 'auto' | 'claude-code' | 'cursor' | 'antigravity' | 'vscode' | 'all'
+
+export interface AgentOption {
+  id: AgentId
+  label: string
+  icon: string
+  tip: string
+}
+
+// CLI Presets Configuration
+const autoYes = ref(true) // Skip interactive confirmation prompts (-y)
+const targetAgent = ref<AgentId>('auto')
+
+const agentOptions: AgentOption[] = [
+  { id: 'auto', label: 'Auto-Detect', icon: '🔍', tip: 'CLI auto-detects current active agent (no -a flag)' },
+  { id: 'claude-code', label: 'Claude Code', icon: '🤖', tip: 'Targets Claude Code CLI (-a claude-code)' },
+  { id: 'cursor', label: 'Cursor', icon: '💻', tip: 'Targets Cursor AI Editor (-a cursor)' },
+  { id: 'antigravity', label: 'Antigravity', icon: '⚡', tip: 'Targets Google Antigravity (-a antigravity)' },
+  { id: 'vscode', label: 'Codespaces', icon: '☁️', tip: 'Targets VS Code & Codespaces (-a vscode)' },
+  { id: 'all', label: 'All Agents', icon: '🌐', tip: "Installs to all agents (-a '*')" }
+]
+
+const generateCommand = (source: string): string => {
+  // Global (-g) is permanently active as requested
+  let cmd = `npx skills add ${source} -g`
+  if (autoYes.value) {
+    cmd += ' -y'
+  }
+  if (targetAgent.value !== 'auto') {
+    if (targetAgent.value === 'all') {
+      cmd += " -a '*'"
+    } else {
+      cmd += ` -a ${targetAgent.value}`
+    }
+  }
+  return cmd
+}
+
 const categories = computed(() => {
   const cats = new Set<string>()
   skills.value.forEach(s => cats.add(s.category))
@@ -60,10 +98,12 @@ const filteredSkills = computed(() => {
     if (!matchesCategory) return false
 
     if (!q) return true
+    const genCmd = generateCommand(item.source).toLowerCase()
     return (
       item.name.toLowerCase().includes(q) ||
       item.source.toLowerCase().includes(q) ||
       item.command.toLowerCase().includes(q) ||
+      genCmd.includes(q) ||
       item.description.toLowerCase().includes(q) ||
       item.tags.some(t => t.toLowerCase().includes(q))
     )
@@ -71,7 +111,8 @@ const filteredSkills = computed(() => {
 })
 
 const copySkillCommand = (skill: SkillItem) => {
-  copyToClipboard(skill.command, `Copied command: ${skill.command}`)
+  const cmd = generateCommand(skill.source)
+  copyToClipboard(cmd, `Copied command: ${cmd}`)
   copiedCommandId.value = skill.id
   setTimeout(() => {
     if (copiedCommandId.value === skill.id) {
@@ -127,6 +168,73 @@ const copySkillCommand = (skill: SkillItem) => {
           </button>
         </div>
       </div>
+
+      <!-- CLI Configuration Toolbar -->
+      <div class="cli-config-card">
+        <div class="cli-config-header">
+          <div class="cli-config-title">
+            <span class="cfg-badge">CLI PRESETS</span>
+            <span class="cfg-hint">Configure flags applied automatically across all skill commands</span>
+          </div>
+
+          <!-- Active Flags Summary Pill -->
+          <div class="cli-active-preview">
+            <span class="preview-label">Active Flags:</span>
+            <span class="flag-tag flag-global" title="Global mode is permanently enabled">-g GLOBAL</span>
+            <span v-if="autoYes" class="flag-tag flag-yes" title="Auto-confirm enabled: skips interactive prompts">-y AUTO-YES</span>
+            <span v-if="targetAgent !== 'auto'" class="flag-tag flag-agent" :title="'Target agent: ' + targetAgent">
+              -a {{ targetAgent === 'all' ? "'*'" : targetAgent }}
+            </span>
+            <span v-else class="flag-tag flag-detect" title="Agent auto-detection active">AUTO-DETECT</span>
+          </div>
+        </div>
+
+        <div class="cli-controls-grid">
+          <!-- Flag Toggles -->
+          <div class="control-section toggles-section">
+            <span class="section-label">Options:</span>
+
+            <!-- Global Scope (Permanently Active) -->
+            <div class="toggle-pill locked-pill" title="Global mode is permanently active to install in ~/.agents/skills/ for all projects">
+              <span class="toggle-icon">🌐</span>
+              <span class="toggle-name">Global (-g)</span>
+              <span class="lock-indicator">ACTIVE</span>
+            </div>
+
+            <!-- Auto-Accept (-y) Toggle -->
+            <button
+              class="toggle-item-btn"
+              :class="{ active: autoYes }"
+              title="Skip interactive prompts and menus automatically"
+              @click="autoYes = !autoYes"
+            >
+              <div class="toggle-pill">
+                <span class="toggle-icon">⚡</span>
+                <span class="toggle-name">Auto-Accept (-y)</span>
+                <span class="toggle-status">{{ autoYes ? 'ON' : 'OFF' }}</span>
+              </div>
+            </button>
+          </div>
+
+          <!-- Target Agent Selector -->
+          <div class="control-section agents-section">
+            <span class="section-label">Target Agent:</span>
+            <div class="agent-pills-row">
+              <button
+                v-for="agent in agentOptions"
+                :key="agent.id"
+                class="agent-pill-btn"
+                :class="{ active: targetAgent === agent.id }"
+                :title="agent.tip"
+                @click="targetAgent = agent.id"
+              >
+                <span class="agent-icon">{{ agent.icon }}</span>
+                <span class="agent-name">{{ agent.label }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Skills Grid -->
@@ -167,7 +275,7 @@ const copySkillCommand = (skill: SkillItem) => {
         <div class="command-box" @click="copySkillCommand(skill)">
           <div class="terminal-prompt">
             <span class="prompt-symbol">$</span>
-            <code class="command-code">{{ skill.command }}</code>
+            <code class="command-code">{{ generateCommand(skill.source) }}</code>
           </div>
           <button
             class="btn-copy-cmd"
@@ -380,6 +488,240 @@ const copySkillCommand = (skill: SkillItem) => {
   color: white;
   border-color: transparent;
   box-shadow: var(--shadow-red);
+}
+
+/* CLI Configuration Toolbar */
+.cli-config-card {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 30, 66, 0.2);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  transition: var(--transition);
+}
+
+.cli-config-card:hover {
+  border-color: rgba(255, 30, 66, 0.35);
+}
+
+.cli-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cli-config-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.cfg-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--neon-red);
+  background: rgba(255, 30, 66, 0.12);
+  border: 1px solid rgba(255, 30, 66, 0.35);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.cfg-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cli-active-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.preview-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.flag-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.flag-global {
+  background: rgba(255, 30, 66, 0.15);
+  color: var(--neon-red);
+  border: 1px solid rgba(255, 30, 66, 0.35);
+}
+
+.flag-yes {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.flag-agent {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.flag-detect {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cli-controls-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+@media (min-width: 900px) {
+  .cli-controls-grid {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.control-section {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.toggles-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.locked-pill {
+  background: rgba(255, 30, 66, 0.1);
+  border: 1px solid rgba(255, 30, 66, 0.3);
+  color: #fff;
+  cursor: default;
+  user-select: none;
+}
+
+.lock-indicator {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  background: rgba(255, 30, 66, 0.22);
+  color: var(--neon-red);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.toggle-item-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+}
+
+.toggle-item-btn .toggle-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.toggle-item-btn .toggle-status {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.toggle-item-btn.active .toggle-pill {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #e5e7eb;
+}
+
+.toggle-item-btn.active .toggle-status {
+  background: rgba(16, 185, 129, 0.25);
+  color: #10b981;
+}
+
+.toggle-item-btn:hover .toggle-pill {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.agent-pills-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.agent-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.agent-pill-btn:hover {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.agent-pill-btn.active {
+  background: rgba(255, 30, 66, 0.18);
+  border-color: var(--neon-red);
+  color: white;
+  box-shadow: 0 0 10px rgba(255, 30, 66, 0.25);
 }
 
 /* Skills Grid */

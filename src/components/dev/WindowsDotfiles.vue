@@ -50,74 +50,6 @@ const modes: SetupMode[] = [
     icon: '🔍'
   }
 ]
-
-interface DotfileModule {
-  num: string
-  name: string
-  icon: string
-  tag: string
-  description: string
-  highlights: string[]
-}
-
-const modules: DotfileModule[] = [
-  {
-    num: '01',
-    name: 'Windows Debloat',
-    icon: '🧹',
-    tag: 'PRIVACY & TELEMETRY',
-    description: 'Removes pre-installed Windows bloatware, disables diagnostic telemetry, stops background tracking services, and streamlines system footprint.',
-    highlights: ['Disables telemetry & tracking', 'Cleans UWP bloatware', 'Optimizes background services']
-  },
-  {
-    num: '02',
-    name: 'Winget Packages',
-    icon: '📦',
-    tag: 'DEV TOOLCHAIN',
-    description: 'Automated batch installer for essential modern developer tools, runtimes, editors, and CLI utilities via the official Windows Package Manager.',
-    highlights: ['Windows Terminal & PowerShell 7', 'Git, VS Code & Node.js', 'Core CLI developer toolchain']
-  },
-  {
-    num: '03',
-    name: 'Developer Fonts',
-    icon: '🔤',
-    tag: 'NERD FONTS',
-    description: 'Downloads and installs modern monospace programming typefaces with full Nerd Font glyph symbol sets for terminal icons and powerline styling.',
-    highlights: ['Patched Nerd Fonts', 'Full ligature support', 'Instant terminal integration']
-  },
-  {
-    num: '04',
-    name: 'Shell & Configurations',
-    icon: '⚙️',
-    tag: 'PROFILES & DOTFILES',
-    description: 'Deploys customized PowerShell profiles, Windows Terminal color schemes, Starship prompts, and Git global configurations.',
-    highlights: ['PowerShell profile & aliases', 'Windows Terminal dark themes', 'Git global config presets']
-  },
-  {
-    num: '05',
-    name: 'System Tweaks',
-    icon: '🚀',
-    tag: 'PERFORMANCE & OS',
-    description: 'Enforces system-wide dark mode, optimizes File Explorer navigation (shows file extensions & hidden files), and restores clean context menus.',
-    highlights: ['Global Dark Mode', 'File Explorer optimizations', 'Restores classic context menu']
-  },
-  {
-    num: '06',
-    name: 'Personal Tweaks',
-    icon: '🎨',
-    tag: 'SHORTCUTS & ERGONOMICS',
-    description: 'Developer ergonomic tweaks, custom shortcuts, environment variable paths, and tailored developer environment optimizations.',
-    highlights: ['Fast PATH environment setup', 'Developer ergonomic shortcuts', 'Visual UI adjustments']
-  },
-  {
-    num: '07',
-    name: 'Cleanups & Uninstalls',
-    icon: '🗑️',
-    tag: 'FINAL DEBLOAT',
-    description: 'Safely removes legacy unwanted components (such as OneDrive sync agents) and cleans lingering temporary installation artifacts.',
-    highlights: ['Clean OneDrive removal', 'Temporary cache purge', 'Post-install reboot verification']
-  }
-]
 </script>
 
 <template>
@@ -140,12 +72,12 @@ const modules: DotfileModule[] = [
 
         <div class="hero-stats">
           <div class="stat-badge">
-            <span class="stat-num">7</span>
-            <span class="stat-label">Modules</span>
-          </div>
-          <div class="stat-badge">
             <span class="stat-num">3</span>
             <span class="stat-label">Modes</span>
+          </div>
+          <div class="stat-badge">
+            <span class="stat-num">1-Click</span>
+            <span class="stat-label">Installer</span>
           </div>
         </div>
       </div>
@@ -210,44 +142,6 @@ const modules: DotfileModule[] = [
           </div>
           <h4 class="mode-name">{{ mode.title }}</h4>
           <p class="mode-desc">{{ mode.desc }}</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modules Grid Section -->
-    <div class="modules-section">
-      <div class="section-heading">
-        <h3 class="section-title">Modular Architecture</h3>
-        <p class="section-subtitle">7 autonomous modules executed in sequence to set up your entire operating system</p>
-      </div>
-
-      <div class="modules-grid">
-        <div
-          v-for="mod in modules"
-          :key="mod.num"
-          class="module-card"
-        >
-          <div class="module-header">
-            <div class="module-id-group">
-              <span class="module-num">{{ mod.num }}</span>
-              <span class="module-icon">{{ mod.icon }}</span>
-            </div>
-            <span class="module-tag">{{ mod.tag }}</span>
-          </div>
-
-          <h4 class="module-name">{{ mod.name }}</h4>
-          <p class="module-desc">{{ mod.description }}</p>
-
-          <div class="module-highlights">
-            <div
-              v-for="h in mod.highlights"
-              :key="h"
-              class="highlight-pill"
-            >
-              <span class="pill-dot">•</span>
-              <span>{{ h }}</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -617,97 +511,6 @@ const modules: DotfileModule[] = [
   font-size: 0.82rem;
   color: var(--text-secondary);
   line-height: 1.5;
-}
-
-/* Modules Grid */
-.modules-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.25rem;
-}
-
-.module-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1.35rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  transition: var(--transition);
-}
-
-.module-card:hover {
-  border-color: var(--border-glow-red);
-  box-shadow: 0 10px 28px rgba(255, 30, 66, 0.12);
-}
-
-.module-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.module-id-group {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.module-num {
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  font-weight: 800;
-  color: var(--neon-red);
-  background: rgba(255, 30, 66, 0.1);
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 30, 66, 0.25);
-}
-
-.module-icon {
-  font-size: 1.3rem;
-}
-
-.module-tag {
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-}
-
-.module-name {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: white;
-}
-
-.module-desc {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.module-highlights {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-top: auto;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.highlight-pill {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.74rem;
-  color: var(--text-muted);
-}
-
-.pill-dot {
-  color: var(--neon-red);
-  font-size: 0.9rem;
 }
 
 /* Footer Card */

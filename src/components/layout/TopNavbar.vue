@@ -87,13 +87,13 @@ const getViewMetadata = (id: ActiveViewId) => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background: rgba(14, 8, 12, 0.85);
+  background: rgba(10, 6, 9, 0.96);
   border-bottom: 1px solid var(--border-color);
-  backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
   z-index: 50;
   min-height: 72px;
+  transform: translateZ(0);
 }
 
 .navbar-left {

@@ -596,7 +596,6 @@ const handleGlobalKey = (e: KeyboardEvent) => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.5rem 1.75rem;
-  backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -723,7 +722,6 @@ const handleGlobalKey = (e: KeyboardEvent) => {
   border-radius: var(--radius-md);
   padding: 1rem 1.25rem;
   text-align: center;
-  backdrop-filter: blur(12px);
 }
 
 .stat-meta {

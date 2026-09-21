@@ -94,7 +94,6 @@ const tools: ToolLink[] = [
   padding: 1.75rem;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(16px);
   transition: var(--transition);
 }
 

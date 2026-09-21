@@ -228,7 +228,6 @@ const copySkillCommand = (skill: SkillItem) => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.75rem;
-  backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -395,7 +394,6 @@ const copySkillCommand = (skill: SkillItem) => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 1.5rem;
-  backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   gap: 1.15rem;

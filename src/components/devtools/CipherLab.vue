@@ -510,7 +510,6 @@ const loadSample = () => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.75rem;
-  backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -679,7 +678,6 @@ const loadSample = () => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 1.25rem;
-  backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
   gap: 0.85rem;

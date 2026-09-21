@@ -130,7 +130,6 @@ const copyEndpoint = (path: string) => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 1.5rem 1.75rem;
-  backdrop-filter: blur(16px);
   transition: var(--transition);
 }
 

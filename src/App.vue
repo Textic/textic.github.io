@@ -190,6 +190,9 @@ onUnmounted(() => {
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
 }
 
 .workspace-body {
@@ -221,7 +224,6 @@ onUnmounted(() => {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 2.5rem 2rem;
-  backdrop-filter: blur(16px);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;

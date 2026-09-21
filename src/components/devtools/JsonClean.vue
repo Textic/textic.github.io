@@ -168,7 +168,6 @@ const stats = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
-  backdrop-filter: blur(16px);
   transition: var(--transition);
 }
 

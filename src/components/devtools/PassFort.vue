@@ -240,7 +240,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  backdrop-filter: blur(16px);
   transition: var(--transition);
 }
 

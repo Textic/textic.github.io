@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#240711" />
+      <stop offset="100%" stop-color="#080205" />
+    </linearGradient>
+    <linearGradient id="redNeon" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff3b5c" />
+      <stop offset="100%" stop-color="#d90429" />
+    </linearGradient>
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Cyber Badge Background -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bgGrad)" stroke="#ff1e42" stroke-width="4" stroke-opacity="0.8" />
+  
+  <!-- Corner Circuit Accents -->
+  <path d="M 4 26 L 26 4 M 102 4 L 124 26 M 124 102 L 102 124 M 26 124 L 4 102" stroke="#ff1e42" stroke-width="2" stroke-opacity="0.35" />
+
+  <g filter="url(#neonGlow)">
+    <!-- Left Developer Bracket < -->
+    <path d="M 35 44 L 18 64 L 35 84" fill="none" stroke="#00dfd8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- Right Developer Bracket > -->
+    <path d="M 93 44 L 110 64 L 93 84" fill="none" stroke="#00dfd8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Central TexTools T Monogram -->
+    <path d="M 43 40 L 85 40 L 85 55 L 71 55 L 71 88 L 57 88 L 57 55 L 43 55 Z" fill="url(#redNeon)" />
+
+    <!-- Core Energy Diode -->
+    <circle cx="64" cy="47" r="2.5" fill="#ffffff" />
+    <!-- Bottom Terminal Indicator -->
+    <rect x="60" y="93" width="8" height="3" rx="1.5" fill="#00dfd8" />
+  </g>
+</svg>

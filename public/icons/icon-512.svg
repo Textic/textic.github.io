@@ -18,24 +18,16 @@
   </defs>
 
   <!-- Cyber Badge Background -->
-  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bgGrad512)" stroke="#ff1e42" stroke-width="12" stroke-opacity="0.8" />
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bgGrad512)" stroke="#ff1e42" stroke-width="12" stroke-opacity="0.85" />
   
   <!-- Corner Circuit Accents -->
   <path d="M 16 100 L 100 16 M 412 16 L 496 100 M 496 412 L 412 496 M 100 496 L 16 412" stroke="#ff1e42" stroke-width="8" stroke-opacity="0.35" />
 
   <g filter="url(#neonGlow512)">
-    <!-- Left Developer Bracket < -->
-    <path d="M 140 176 L 76 256 L 140 336" fill="none" stroke="#00dfd8" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
-    
-    <!-- Right Developer Bracket > -->
-    <path d="M 372 176 L 436 256 L 372 336" fill="none" stroke="#00dfd8" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
-
-    <!-- Central TexTools T Monogram -->
-    <path d="M 172 160 L 340 160 L 340 220 L 284 220 L 284 352 L 228 352 L 228 220 L 172 220 Z" fill="url(#redNeon512)" />
+    <!-- Central TexTools T Monogram (Bold & Centered) -->
+    <path d="M 120 144 L 392 144 L 392 216 L 292 216 L 292 376 L 220 376 L 220 216 L 120 216 Z" fill="url(#redNeon512)" />
 
     <!-- Core Energy Diode -->
-    <circle cx="256" cy="190" r="9" fill="#ffffff" />
-    <!-- Bottom Terminal Indicator -->
-    <rect x="240" y="374" width="32" height="10" rx="5" fill="#00dfd8" />
+    <circle cx="256" cy="180" r="14" fill="#ffffff" />
   </g>
 </svg>

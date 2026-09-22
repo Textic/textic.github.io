@@ -10,8 +10,13 @@ type Mode = 'encode' | 'decode'
 const mode = ref<Mode>('encode')
 const inputText = ref('')
 const aesKey = ref('textic-secret-key')
+const hmacKey = ref('secret-hmac-key')
+const vigenereKey = ref('TEXTIC')
+const caesarShift = ref(3)
+const xorKey = ref('textic')
 
-// Async hashes state
+// Hashes state
+const md5Hash = ref('')
 const sha256Hash = ref('')
 const sha512Hash = ref('')
 const sha1Hash = ref('')
@@ -59,6 +64,138 @@ const base64UrlResult = computed(() => {
     }
   } catch {
     return '⚠️ Invalid Base64 URL string'
+  }
+})
+
+// Helper: Base32 (RFC 4648)
+const B32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+
+const toBase32 = (str: string): string => {
+  const bytes = new TextEncoder().encode(str)
+  let bits = 0
+  let value = 0
+  let output = ''
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i]
+    if (b === undefined) continue
+    value = (value << 8) | b
+    bits += 8
+    while (bits >= 5) {
+      output += B32_ALPHABET[(value >>> (bits - 5)) & 31]
+      bits -= 5
+    }
+  }
+  if (bits > 0) {
+    output += B32_ALPHABET[(value << (5 - bits)) & 31]
+  }
+  while (output.length % 8 !== 0) {
+    output += '='
+  }
+  return output
+}
+
+const fromBase32 = (str: string): string => {
+  const clean = str.toUpperCase().replace(/[\s-=]/g, '')
+  let bits = 0
+  let value = 0
+  const bytes: number[] = []
+  for (let i = 0; i < clean.length; i++) {
+    const char = clean[i]
+    if (!char) continue
+    const idx = B32_ALPHABET.indexOf(char)
+    if (idx === -1) throw new Error('Invalid Base32 character')
+    value = (value << 5) | idx
+    bits += 5
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 255)
+      bits -= 8
+    }
+  }
+  return new TextDecoder().decode(new Uint8Array(bytes))
+}
+
+const base32Result = computed(() => {
+  const text = inputText.value
+  if (!text) return ''
+  try {
+    if (mode.value === 'encode') {
+      return toBase32(text)
+    } else {
+      return fromBase32(text)
+    }
+  } catch {
+    return '⚠️ Invalid Base32 string'
+  }
+})
+
+// Helper: Base58 (Bitcoin / IPFS)
+const B58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+const toBase58 = (str: string): string => {
+  const bytes = new TextEncoder().encode(str)
+  if (bytes.length === 0) return ''
+  let zeros = 0
+  while (zeros < bytes.length && bytes[zeros] === 0) {
+    zeros++
+  }
+  let num = BigInt(0)
+  for (let i = zeros; i < bytes.length; i++) {
+    const b = bytes[i]
+    if (b === undefined) continue
+    num = (num << BigInt(8)) + BigInt(b)
+  }
+  let result = ''
+  const base = BigInt(58)
+  while (num > BigInt(0)) {
+    const rem = Number(num % base)
+    num = num / base
+    result = B58_ALPHABET[rem] + result
+  }
+  for (let i = 0; i < zeros; i++) {
+    result = '1' + result
+  }
+  return result
+}
+
+const fromBase58 = (str: string): string => {
+  const clean = str.trim()
+  if (!clean) return ''
+  let zeros = 0
+  while (zeros < clean.length && clean[zeros] === '1') {
+    zeros++
+  }
+  let num = BigInt(0)
+  const base = BigInt(58)
+  for (let i = zeros; i < clean.length; i++) {
+    const char = clean[i]
+    if (!char) continue
+    const idx = B58_ALPHABET.indexOf(char)
+    if (idx === -1) throw new Error('Invalid Base58 character')
+    num = num * base + BigInt(idx)
+  }
+  const hex = num.toString(16)
+  const paddedHex = hex.length % 2 !== 0 ? '0' + hex : hex
+  const numBytes: number[] = []
+  for (let i = 0; i < paddedHex.length; i += 2) {
+    numBytes.push(parseInt(paddedHex.substring(i, i + 2), 16))
+  }
+  const allBytes = new Uint8Array(zeros + numBytes.length)
+  allBytes.fill(0, 0, zeros)
+  allBytes.set(numBytes, zeros)
+  return new TextDecoder().decode(allBytes)
+}
+
+const base58Result = computed(() => {
+  const text = inputText.value
+  if (!text) return ''
+  try {
+    if (mode.value === 'encode') {
+      return toBase58(text)
+    } else {
+      return fromBase58(text)
+    }
+  } catch {
+    return '⚠️ Invalid Base58 string'
   }
 })
 
@@ -144,6 +281,50 @@ const aesEcbResult = computed(() => {
     }
   } catch {
     return '⚠️ Decryption failed (invalid ciphertext)'
+  }
+})
+
+// AES-CBC (Cipher Block Chaining Mode)
+const aesCbcResult = computed(() => {
+  const text = inputText.value
+  const key = aesKey.value
+  if (!text) return ''
+  if (!key) return '⚠️ Secret key is required'
+
+  try {
+    if (mode.value === 'encode') {
+      const encrypted = CryptoJS.AES.encrypt(text, key, {
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      })
+      return encrypted.toString() // Standard Base64 AES-CBC ciphertext
+    } else {
+      const decrypted = CryptoJS.AES.decrypt(text.trim(), key, {
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      })
+      const str = decrypted.toString(CryptoJS.enc.Utf8)
+      if (!str) {
+        return '⚠️ Decryption failed (invalid key, ciphertext, or IV)'
+      }
+      return str
+    }
+  } catch {
+    return '⚠️ Decryption failed (invalid ciphertext)'
+  }
+})
+
+// HMAC-SHA256 Message Authentication Code
+const hmacResult = computed(() => {
+  const text = inputText.value
+  const key = hmacKey.value
+  if (!text) return ''
+  if (!key) return '⚠️ HMAC secret key required'
+
+  try {
+    return CryptoJS.HmacSHA256(text, key).toString()
+  } catch {
+    return '⚠️ HMAC calculation error'
   }
 })
 
@@ -291,13 +472,99 @@ const reverseResult = computed(() => {
   return text.split('').reverse().join('')
 })
 
-// Calculate Hashes using native Web Crypto API
+// 11. Caesar Cipher (Dynamic Shift 1-25)
+const caesarResult = computed(() => {
+  const text = inputText.value
+  if (!text) return ''
+  const shift = ((caesarShift.value % 26) + 26) % 26
+  const effectiveShift = mode.value === 'encode' ? shift : (26 - shift) % 26
+  return text.replace(/[a-zA-Z]/g, c => {
+    const code = c.charCodeAt(0)
+    const base = code <= 90 ? 65 : 97
+    return String.fromCharCode(((code - base + effectiveShift) % 26) + base)
+  })
+})
+
+// 12. Vigenère Cipher (Polyalphabetic with Key)
+const vigenereResult = computed(() => {
+  const text = inputText.value
+  const rawKey = vigenereKey.value.replace(/[^a-zA-Z]/g, '').toUpperCase()
+  if (!text) return ''
+  if (!rawKey) return '⚠️ Keyword required (letters A-Z)'
+
+  let keyIdx = 0
+  const isEncode = mode.value === 'encode'
+  return text.replace(/[a-zA-Z]/g, c => {
+    const code = c.charCodeAt(0)
+    const isUpper = code <= 90
+    const base = isUpper ? 65 : 97
+    const shift = rawKey.charCodeAt(keyIdx % rawKey.length) - 65
+    keyIdx++
+    const effectiveShift = isEncode ? shift : (26 - shift) % 26
+    return String.fromCharCode(((code - base + effectiveShift) % 26) + base)
+  })
+})
+
+// 13. XOR Cipher (Bitwise ASCII/Hex with Key)
+const xorResult = computed(() => {
+  const text = inputText.value
+  const key = xorKey.value
+  if (!text) return ''
+  if (!key) return '⚠️ Secret key is required'
+
+  const keyBytes = new TextEncoder().encode(key)
+  if (keyBytes.length === 0) return '⚠️ Secret key is required'
+
+  try {
+    if (mode.value === 'encode') {
+      const textBytes = new TextEncoder().encode(text)
+      const xorBytes = new Uint8Array(textBytes.length)
+      for (let i = 0; i < textBytes.length; i++) {
+        const tb = textBytes[i]
+        const kb = keyBytes[i % keyBytes.length]
+        if (tb !== undefined && kb !== undefined) {
+          xorBytes[i] = tb ^ kb
+        }
+      }
+      return Array.from(xorBytes).map(b => b.toString(16).padStart(2, '0')).join(' ')
+    } else {
+      const cleanHex = text.replace(/0x|\s+/g, '')
+      if (cleanHex.length % 2 !== 0) return '⚠️ Odd length hex string'
+      const hexBytes = new Uint8Array(cleanHex.length / 2)
+      for (let i = 0; i < cleanHex.length; i += 2) {
+        const byte = parseInt(cleanHex.substring(i, i + 2), 16)
+        if (isNaN(byte)) return '⚠️ Invalid hexadecimal character'
+        hexBytes[i / 2] = byte
+      }
+      const decryptedBytes = new Uint8Array(hexBytes.length)
+      for (let i = 0; i < hexBytes.length; i++) {
+        const hb = hexBytes[i]
+        const kb = keyBytes[i % keyBytes.length]
+        if (hb !== undefined && kb !== undefined) {
+          decryptedBytes[i] = hb ^ kb
+        }
+      }
+      return new TextDecoder().decode(decryptedBytes)
+    }
+  } catch {
+    return '⚠️ XOR operation failed'
+  }
+})
+
+// Calculate Hashes using native Web Crypto API & CryptoJS
 const computeHashes = async (text: string) => {
   if (!text || mode.value === 'decode') {
+    md5Hash.value = ''
     sha256Hash.value = ''
     sha512Hash.value = ''
     sha1Hash.value = ''
     return
+  }
+
+  try {
+    md5Hash.value = CryptoJS.MD5(text).toString()
+  } catch {
+    md5Hash.value = 'MD5 computation error'
   }
 
   const encoder = new TextEncoder()
@@ -341,6 +608,10 @@ interface CipherCard {
   output: string
   isHash?: boolean
   hasKeyInput?: boolean
+  hasHmacKeyInput?: boolean
+  hasVigenereKeyInput?: boolean
+  hasCaesarShiftInput?: boolean
+  hasXorKeyInput?: boolean
 }
 
 const cards = computed<CipherCard[]>(() => {
@@ -349,21 +620,29 @@ const cards = computed<CipherCard[]>(() => {
     { id: 'hex', title: 'Hexadecimal', icon: '🔢', badge: 'Base16', output: hexResult.value },
     { id: 'bin', title: 'Binary', icon: '⚡', badge: '8-bit', output: binaryResult.value },
     { id: 'morse', title: 'Morse Code', icon: '📻', badge: 'ITU', output: morseResult.value },
-    { id: 'jwt', title: 'JWT (JSON Web Token)', icon: '🛡️', badge: 'RFC 7519', output: jwtResult.value },
-    { id: 'aes-ecb', title: 'AES-ECB', icon: '🔐', badge: 'PKCS7 / 128-256b', output: aesEcbResult.value, hasKeyInput: true },
     { id: 'b64url', title: 'Base64 URL-Safe', icon: '🔗', badge: 'RFC 4648', output: base64UrlResult.value },
+    { id: 'b32', title: 'Base32', icon: '🔐', badge: 'RFC 4648', output: base32Result.value },
+    { id: 'b58', title: 'Base58', icon: '🪙', badge: 'Bitcoin / IPFS', output: base58Result.value },
+    { id: 'aes-cbc', title: 'AES-CBC', icon: '🔒', badge: 'PKCS7 / CBC', output: aesCbcResult.value, hasKeyInput: true },
+    { id: 'aes-ecb', title: 'AES-ECB', icon: '🔐', badge: 'PKCS7 / ECB', output: aesEcbResult.value, hasKeyInput: true },
+    { id: 'jwt', title: 'JWT (JSON Web Token)', icon: '🛡️', badge: 'RFC 7519', output: jwtResult.value },
     { id: 'url', title: 'URL Percent-Encoding', icon: '🌐', badge: 'URI', output: urlResult.value },
     { id: 'html', title: 'HTML Entities', icon: '🏷️', badge: 'Entities', output: htmlEntitiesResult.value },
+    { id: 'caesar', title: 'Caesar Cipher', icon: '🏛️', badge: 'Shift', output: caesarResult.value, hasCaesarShiftInput: true },
     { id: 'rot13', title: 'ROT13', icon: '🌀', badge: 'Caesar', output: rot13Result.value },
+    { id: 'vigenere', title: 'Vigenère Cipher', icon: '📜', badge: 'Polyalphabetic', output: vigenereResult.value, hasVigenereKeyInput: true },
     { id: 'atbash', title: 'Atbash Cipher', icon: '🔄', badge: 'A↔Z', output: atbashResult.value },
+    { id: 'xor', title: 'XOR Cipher', icon: '⚡', badge: 'Bitwise Hex', output: xorResult.value, hasXorKeyInput: true },
     { id: 'rev', title: 'Reversed Text', icon: '🪞', badge: 'Reverse', output: reverseResult.value },
   ]
 
   if (mode.value === 'encode') {
     list.push(
+      { id: 'md5', title: 'MD5 Checksum', icon: '💾', badge: '128-bit', output: md5Hash.value, isHash: true },
       { id: 'sha256', title: 'SHA-256 Hash', icon: '🛡️', badge: '256-bit', output: sha256Hash.value, isHash: true },
       { id: 'sha512', title: 'SHA-512 Hash', icon: '🔒', badge: '512-bit', output: sha512Hash.value, isHash: true },
-      { id: 'sha1', title: 'SHA-1 Hash', icon: '🔑', badge: '160-bit', output: sha1Hash.value, isHash: true }
+      { id: 'sha1', title: 'SHA-1 Hash', icon: '🔑', badge: '160-bit', output: sha1Hash.value, isHash: true },
+      { id: 'hmac-sha256', title: 'HMAC-SHA256', icon: '🔏', badge: 'MAC 256-bit', output: hmacResult.value, isHash: true, hasHmacKeyInput: true }
     )
   }
 
@@ -468,7 +747,7 @@ const loadSample = () => {
           </div>
         </div>
 
-        <!-- Key Configuration Row (For AES-ECB) -->
+        <!-- Key Configuration Row (For AES-CBC / AES-ECB) -->
         <div v-if="card.hasKeyInput" class="card-key-row">
           <span class="key-tag">🔑 Key:</span>
           <input
@@ -476,6 +755,66 @@ const loadSample = () => {
             type="text"
             class="key-text-input"
             placeholder="Secret key..."
+            spellcheck="false"
+            @click.stop
+          />
+        </div>
+
+        <!-- Key Configuration Row (For HMAC-SHA256) -->
+        <div v-if="card.hasHmacKeyInput" class="card-key-row">
+          <span class="key-tag">🔑 HMAC Key:</span>
+          <input
+            v-model="hmacKey"
+            type="text"
+            class="key-text-input"
+            placeholder="Secret HMAC key..."
+            spellcheck="false"
+            @click.stop
+          />
+        </div>
+
+        <!-- Key Configuration Row (For Vigenère) -->
+        <div v-if="card.hasVigenereKeyInput" class="card-key-row">
+          <span class="key-tag">🔤 Keyword:</span>
+          <input
+            v-model="vigenereKey"
+            type="text"
+            class="key-text-input"
+            placeholder="Keyword (letters A-Z)..."
+            spellcheck="false"
+            @click.stop
+          />
+        </div>
+
+        <!-- Shift Configuration Row (For Caesar) -->
+        <div v-if="card.hasCaesarShiftInput" class="card-key-row caesar-row">
+          <span class="key-tag">🔢 Shift:</span>
+          <input
+            v-model.number="caesarShift"
+            type="range"
+            min="1"
+            max="25"
+            class="key-slider"
+            @click.stop
+          />
+          <input
+            v-model.number="caesarShift"
+            type="number"
+            min="1"
+            max="25"
+            class="key-number-input"
+            @click.stop
+          />
+        </div>
+
+        <!-- Key Configuration Row (For XOR) -->
+        <div v-if="card.hasXorKeyInput" class="card-key-row">
+          <span class="key-tag">⚡ XOR Key:</span>
+          <input
+            v-model="xorKey"
+            type="text"
+            class="key-text-input"
+            placeholder="Key string..."
             spellcheck="false"
             @click.stop
           />
@@ -830,5 +1169,35 @@ const loadSample = () => {
 
 .key-text-input::placeholder {
   color: var(--text-muted);
+}
+
+.caesar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.key-slider {
+  flex: 1;
+  accent-color: var(--neon-red);
+  cursor: pointer;
+  height: 4px;
+}
+
+.key-number-input {
+  width: 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 0.15rem 0.25rem;
+  outline: none;
+}
+
+.key-number-input:focus {
+  border-color: var(--neon-red);
 }
 </style>

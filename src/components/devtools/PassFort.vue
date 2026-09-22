@@ -26,7 +26,7 @@ const generatePassword = () => {
   let upperPool = includeUpper.value ? CHARS.upper : ''
   let lowerPool = includeLower.value ? CHARS.lower : ''
   let numPool = includeNumbers.value ? CHARS.numbers : ''
-  let symPool = includeSymbols.value ? CHARS.symbols : ''
+  const symPool = includeSymbols.value ? CHARS.symbols : ''
 
   if (excludeAmbiguous.value) {
     const ambRegex = new RegExp(`[${CHARS.ambiguous}]`, 'g')

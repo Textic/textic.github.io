@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useToast } from '@/composables/useToast'
-
-const { showToast } = useToast()
 
 type Mode = 'words' | 'quotes' | 'time'
 type Language = 'en' | 'es'

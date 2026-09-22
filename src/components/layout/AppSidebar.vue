@@ -107,10 +107,9 @@ const selectItem = (id: ActiveViewId) => {
     <!-- Sidebar Header / Brand -->
     <div class="sidebar-header">
       <div class="brand-box" @click="selectItem('arcade-snake')">
-        <span class="brand-icon">👾</span>
+        <span class="brand-icon">⚡</span>
         <div v-show="!isCollapsed" class="brand-text">
           <h2 class="brand-title">TexTools</h2>
-          <span class="brand-subtitle">Developer Arcade</span>
         </div>
       </div>
 

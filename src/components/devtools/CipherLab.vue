@@ -592,7 +592,7 @@ watch([inputText, mode], () => {
 })
 
 onMounted(() => {
-  inputText.value = 'Textic Developer Arcade 2026'
+  inputText.value = 'TexTools 2026'
   computeHashes(inputText.value)
 })
 
@@ -661,9 +661,9 @@ const clearInput = () => {
 
 const loadSample = () => {
   if (mode.value === 'encode') {
-    inputText.value = 'Textic Developer Arcade 2026 👾'
+    inputText.value = 'TexTools 2026 ⚡'
   } else {
-    inputText.value = 'VGV4dGljIERldmVsb3BlciBBcmNhZGUgMjAyNiDwn56+'
+    inputText.value = 'VGV4VG9vbHMgMjAyNiDimqE='
   }
   showToast('Sample loaded')
 }

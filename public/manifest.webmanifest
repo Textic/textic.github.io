@@ -1,7 +1,7 @@
 {
-  "name": "TexTools | Developer Arcade & Sandbox",
+  "name": "TexTools",
   "short_name": "TexTools",
-  "description": "Retro-futuristic gaming arcade, developer utilities, and offline tools.",
+  "description": "Developer utilities, tools, and offline applications.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

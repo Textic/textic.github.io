@@ -182,7 +182,7 @@ onUnmounted(() => {
       <!-- App Footer -->
       <footer class="workspace-footer">
         <div class="footer-left">
-          <span class="footer-brand">TexTools Arcade & Sandbox</span>
+          <span class="footer-brand">TexTools</span>
           <span class="footer-dot">•</span>
           <span class="footer-copy">&copy; 2026 TexTools</span>
         </div>

@@ -1,13 +1,12 @@
 <template>
   <header class="app-header">
     <div class="header-tag">
-      <span class="tag-icon">👾</span>
-      <span class="tag-text">TexTools Sandbox</span>
+      <span class="tag-icon">⚡</span>
+      <span class="tag-text">TexTools</span>
     </div>
-    <h1 class="main-title">Developer Arcade</h1>
+    <h1 class="main-title">TexTools</h1>
     <p class="subtitle">
-      A retro-futuristic workspace featuring arcade games and essential developer utilities.
-      Your static files are served as a public CDN in the background.
+      A retro-futuristic workspace featuring essential developer utilities, tools, and retro games.
     </p>
   </header>
 </template>

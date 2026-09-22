@@ -71,7 +71,7 @@ const clearJson = () => {
 
 const loadSample = () => {
   rawJson.value = JSON.stringify({
-    project: "Textic Arcade & Sandbox",
+    project: "TexTools",
     version: "2.0.0",
     theme: "Dark & Crimson Red",
     features: ["CipherLab", "PassFort", "JSON Clean", "Cyber Snake", "Typing Blitz"],

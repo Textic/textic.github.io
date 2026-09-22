@@ -4,9 +4,12 @@ import { ref } from 'vue'
 export type ActiveViewId = 
   | 'arcade-snake' 
   | 'arcade-typing' 
+  | 'arcade-minesweeper'
   | 'dev-passfort' 
   | 'dev-json' 
   | 'dev-cipher'
+  | 'dev-time'
+  | 'dev-colors'
   | 'dev-dotfiles'
   | 'skills-catalog'
   | 'links-tools' 
@@ -45,7 +48,8 @@ const categories = ref<NavCategory[]>([
     isOpen: true,
     items: [
       { id: 'arcade-typing', label: 'Typing Blitz', icon: '⌨️', badge: 'PRO' },
-      { id: 'arcade-snake', label: 'Cyber Snake', icon: '🐍', badge: 'CANVAS' }
+      { id: 'arcade-snake', label: 'Cyber Snake', icon: '🐍', badge: 'CANVAS' },
+      { id: 'arcade-minesweeper', label: 'Cyber Minesweeper', icon: '💣', badge: 'TACTIC' }
     ]
   },
   {
@@ -55,6 +59,8 @@ const categories = ref<NavCategory[]>([
     isOpen: true,
     items: [
       { id: 'dev-cipher', label: 'CipherLab', icon: '⚡', badge: 'CRYPTO' },
+      { id: 'dev-time', label: 'Time Studio', icon: '⏱️', badge: 'EPOCH' },
+      { id: 'dev-colors', label: 'Color & CSS Studio', icon: '🎨', badge: 'PALETTE' },
       { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' },
       { id: 'dev-dotfiles', label: 'Windows Dotfiles', icon: '🪟', badge: 'SETUP' },

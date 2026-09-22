@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
 import type { ActiveViewId } from './AppSidebar.vue'
 
 defineProps<{
@@ -10,18 +11,54 @@ const emit = defineEmits<{
   (e: 'open-cdn'): void
 }>()
 
+// PWA Install Prompt Handler
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+const installPrompt = ref<BeforeInstallPromptEvent | null>(null)
+
+const handleBeforeInstallPrompt = (e: Event) => {
+  e.preventDefault()
+  installPrompt.value = e as BeforeInstallPromptEvent
+}
+
+const installApp = async () => {
+  if (!installPrompt.value) return
+  await installPrompt.value.prompt()
+  const choice = await installPrompt.value.userChoice
+  if (choice.outcome === 'accepted') {
+    installPrompt.value = null
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+})
+
 const getViewMetadata = (id: ActiveViewId) => {
   switch (id) {
     case 'arcade-snake':
       return { category: 'Arcade Games', title: 'Cyber Snake', icon: '🐍', tag: 'CANVAS MACHINE' }
     case 'arcade-typing':
       return { category: 'Arcade Games', title: 'Typing Blitz', icon: '⌨️', tag: 'SPEED CHALLENGE' }
+    case 'arcade-minesweeper':
+      return { category: 'Arcade Games', title: 'Cyber Minesweeper', icon: '💣', tag: 'TACTICAL MATRIX' }
     case 'dev-passfort':
       return { category: 'Dev Utilities', title: 'PassFort Generator', icon: '🔐', tag: 'ENTROPY SECURITY' }
     case 'dev-json':
       return { category: 'Dev Utilities', title: 'JSON Clean Formatter', icon: '💎', tag: 'VALIDATOR & MINIFIER' }
     case 'dev-cipher':
       return { category: 'Dev Utilities', title: 'CipherLab (Encoder & Decoder)', icon: '⚡', tag: 'MULTI-CIPHER' }
+    case 'dev-time':
+      return { category: 'Dev Utilities', title: 'Unix Timestamp & Time Studio', icon: '⏱️', tag: 'EPOCH CLOCK' }
+    case 'dev-colors':
+      return { category: 'Dev Utilities', title: 'Color & CSS Studio', icon: '🎨', tag: 'COLOR MATRIX' }
     case 'dev-dotfiles':
       return { category: 'Dev Utilities', title: 'Windows Dotfiles & Setup', icon: '🪟', tag: 'BOOTSTRAPPER' }
     case 'skills-catalog':
@@ -59,6 +96,17 @@ const getViewMetadata = (id: ActiveViewId) => {
 
     <div class="navbar-right">
       <span class="active-badge">{{ getViewMetadata(activeView).tag }}</span>
+
+      <!-- PWA Native Install Button -->
+      <button 
+        v-if="installPrompt"
+        class="btn btn-primary btn-install-app"
+        title="Install Textic as a native app"
+        @click="installApp"
+      >
+        <span>📲</span>
+        <span class="desktop-label">Install App</span>
+      </button>
       
       <button 
         v-if="activeView !== 'cdn-endpoints'"
@@ -176,6 +224,18 @@ const getViewMetadata = (id: ActiveViewId) => {
   padding: 0.45rem 0.9rem;
   font-size: 0.8rem;
   gap: 0.4rem;
+}
+
+.btn-install-app {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+  animation: install-pulse 2.5s infinite;
+}
+
+@keyframes install-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 30, 66, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(255, 30, 66, 0.8); }
 }
 
 .github-btn {

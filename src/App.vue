@@ -8,15 +8,21 @@ import JsonClean from '@/components/devtools/JsonClean.vue'
 import CipherLab from '@/components/devtools/CipherLab.vue'
 import CyberSnake from '@/components/arcade/CyberSnake.vue'
 import TypingBlitz from '@/components/arcade/TypingBlitz.vue'
+import CyberMinesweeper from '@/components/arcade/CyberMinesweeper.vue'
 import UsefulLinks from '@/components/links/UsefulLinks.vue'
 import CdnDrawer from '@/components/layout/CdnDrawer.vue'
 import SkillsHub from '@/components/skills/SkillsHub.vue'
 import WindowsDotfiles from '@/components/dev/WindowsDotfiles.vue'
+import TimeStudio from '@/components/devtools/TimeStudio.vue'
+import ColorStudio from '@/components/devtools/ColorStudio.vue'
 
 const VALID_VIEWS: ActiveViewId[] = [
   'arcade-typing',
   'arcade-snake',
+  'arcade-minesweeper',
   'dev-cipher',
+  'dev-time',
+  'dev-colors',
   'dev-passfort',
   'dev-json',
   'dev-dotfiles',
@@ -115,9 +121,26 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 3. CipherLab Multi-Format Encoder / Decoder -->
+          <!-- 3. Cyber Minesweeper Arcade -->
+          <div v-else-if="activeView === 'arcade-minesweeper'" key="minesweeper" class="view-wrapper arcade-view">
+            <div class="arcade-card-frame">
+              <CyberMinesweeper />
+            </div>
+          </div>
+
+          <!-- 4. CipherLab Multi-Format Encoder / Decoder -->
           <div v-else-if="activeView === 'dev-cipher'" key="cipher" class="view-wrapper">
             <CipherLab />
+          </div>
+
+          <!-- 5. Unix Timestamp & Time Studio -->
+          <div v-else-if="activeView === 'dev-time'" key="time" class="view-wrapper">
+            <TimeStudio />
+          </div>
+
+          <!-- 6. Color & CSS Studio -->
+          <div v-else-if="activeView === 'dev-colors'" key="colors" class="view-wrapper">
+            <ColorStudio />
           </div>
 
           <!-- 4. PassFort Password Generator -->

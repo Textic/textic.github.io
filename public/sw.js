@@ -1,4 +1,4 @@
-const CACHE_NAME = 'textic-v1'
+const CACHE_NAME = 'textools-v1'
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',

@@ -426,7 +426,7 @@ const cssBoxShadow = computed(() => {
 
         <!-- Preview Box Right -->
         <div class="gradient-preview-box" :style="{ background: cssGradientValue }">
-          <span class="preview-glow-text">TEXTIC GRADIENT</span>
+          <span class="preview-glow-text">TEXTOOLS GRADIENT</span>
         </div>
       </div>
     </div>

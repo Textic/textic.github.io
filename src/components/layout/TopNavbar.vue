@@ -101,7 +101,7 @@ const getViewMetadata = (id: ActiveViewId) => {
       <button 
         v-if="installPrompt"
         class="btn btn-primary btn-install-app"
-        title="Install Textic as a native app"
+        title="Install TexTools as a native app"
         @click="installApp"
       >
         <span>📲</span>

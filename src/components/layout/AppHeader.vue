@@ -2,7 +2,7 @@
   <header class="app-header">
     <div class="header-tag">
       <span class="tag-icon">👾</span>
-      <span class="tag-text">Textic Sandbox</span>
+      <span class="tag-text">TexTools Sandbox</span>
     </div>
     <h1 class="main-title">Developer Arcade</h1>
     <p class="subtitle">

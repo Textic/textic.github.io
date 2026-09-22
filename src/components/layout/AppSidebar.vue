@@ -109,7 +109,7 @@ const selectItem = (id: ActiveViewId) => {
       <div class="brand-box" @click="selectItem('arcade-snake')">
         <span class="brand-icon">👾</span>
         <div v-show="!isCollapsed" class="brand-text">
-          <h2 class="brand-title">Textic</h2>
+          <h2 class="brand-title">TexTools</h2>
           <span class="brand-subtitle">Developer Arcade</span>
         </div>
       </div>

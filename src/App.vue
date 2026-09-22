@@ -31,7 +31,7 @@ const VALID_VIEWS: ActiveViewId[] = [
   'cdn-endpoints'
 ]
 
-const STORAGE_KEY = 'textic_active_view'
+const STORAGE_KEY = 'textools_active_view'
 
 // Initialize activeView from URL hash or localStorage
 const getInitialView = (): ActiveViewId => {
@@ -41,7 +41,7 @@ const getInitialView = (): ActiveViewId => {
       return hash
     }
 
-    const saved = localStorage.getItem(STORAGE_KEY) as ActiveViewId | null
+    const saved = (localStorage.getItem(STORAGE_KEY) || localStorage.getItem('textic_active_view')) as ActiveViewId | null
     if (saved && VALID_VIEWS.includes(saved)) {
       return saved
     }
@@ -182,9 +182,9 @@ onUnmounted(() => {
       <!-- App Footer -->
       <footer class="workspace-footer">
         <div class="footer-left">
-          <span class="footer-brand">Textic Arcade & Sandbox</span>
+          <span class="footer-brand">TexTools Arcade & Sandbox</span>
           <span class="footer-dot">•</span>
-          <span class="footer-copy">&copy; 2026 Textic</span>
+          <span class="footer-copy">&copy; 2026 TexTools</span>
         </div>
         <div class="footer-right">
           <a href="https://github.com/Textic/textic.github.io" target="_blank" rel="noopener noreferrer">

@@ -988,7 +988,7 @@ const executeMcpTool = (name: string, args: Record<string, unknown>) => {
   terminalLines.push(`[MCP] ${resultMessage}`)
 }
 
-// --- Natural Language Intent Interpreter (100% English) ---
+// --- Multi-Action Natural Language Intent Interpreter (Bilingual: EN / ES) ---
 const handleNaturalLanguagePrompt = () => {
   const query = promptInput.value.trim().toLowerCase()
   if (!query) return
@@ -996,39 +996,167 @@ const handleNaturalLanguagePrompt = () => {
   isProcessing.value = true
 
   setTimeout(() => {
-    // English Keyword pattern matching for agentic action
-    if (query.includes('turn off') || query.includes('lights off') || query.includes('night') || query.includes('dark')) {
+    let matchedAny = false
+
+    // 1. Light Control: OFF
+    const wantsLightsOff =
+      query.includes('turn off light') ||
+      query.includes('lights off') ||
+      query.includes('light off') ||
+      query.includes('switch off light') ||
+      query.includes('dark') ||
+      query.includes('apaga la luz') ||
+      query.includes('apagar la luz') ||
+      query.includes('apaga las luces') ||
+      query.includes('apagar las luces') ||
+      query.includes('apaga luz') ||
+      query.includes('apagar luz') ||
+      query.includes('sin luz') ||
+      query.includes('noche') ||
+      query.includes('night')
+
+    // 2. Light Control: ON
+    const wantsLightsOn =
+      !wantsLightsOff &&
+      (query.includes('turn on light') ||
+        query.includes('lights on') ||
+        query.includes('light on') ||
+        query.includes('switch on light') ||
+        query.includes('prende la luz') ||
+        query.includes('prender la luz') ||
+        query.includes('prende las luces') ||
+        query.includes('prender las luces') ||
+        query.includes('enciende la luz') ||
+        query.includes('encender la luz') ||
+        query.includes('enciende las luces') ||
+        query.includes('encender las luces') ||
+        query.includes('day'))
+
+    if (wantsLightsOff) {
       executeMcpTool('set_ambient_lighting', { theme: 'night', intensity: 0.15 })
-    } else if (query.includes('turn on') || query.includes('lights on') || query.includes('day')) {
-      executeMcpTool('set_ambient_lighting', { theme: 'crimson', intensity: 1.8 })
-    } else if (query.includes('red') || query.includes('crimson')) {
-      executeMcpTool('set_ambient_lighting', { theme: 'crimson', color: '#ff1e42', intensity: 2.0 })
-    } else if (query.includes('cyan') || query.includes('cyber') || query.includes('blue')) {
-      executeMcpTool('set_ambient_lighting', { theme: 'cyber', color: '#00f0ff', intensity: 2.0 })
-    } else if (query.includes('matrix') || query.includes('green')) {
-      executeMcpTool('set_ambient_lighting', { theme: 'matrix', color: '#00ff66', intensity: 1.8 })
-      executeMcpTool('set_screen_mode', { mode: 'matrix' })
-    } else if (query.includes('power on pc') || query.includes('boot pc') || query.includes('start pc') || (query.includes('on') && query.includes('pc'))) {
+      matchedAny = true
+    } else if (wantsLightsOn) {
+      executeMcpTool('set_ambient_lighting', { theme: 'crimson', intensity: 2.0 })
+      matchedAny = true
+    }
+
+    // 3. Screen / PC: OFF
+    const wantsScreenOff =
+      query.includes('turn off screen') ||
+      query.includes('screen off') ||
+      query.includes('display off') ||
+      query.includes('turn off monitor') ||
+      query.includes('monitor off') ||
+      query.includes('turn off pc') ||
+      query.includes('power off pc') ||
+      query.includes('pc off') ||
+      query.includes('shutdown') ||
+      query.includes('apaga la pantalla') ||
+      query.includes('apagar la pantalla') ||
+      query.includes('apaga pantalla') ||
+      query.includes('apagar pantalla') ||
+      query.includes('apaga el monitor') ||
+      query.includes('apagar el monitor') ||
+      query.includes('apaga el pc') ||
+      query.includes('apagar el pc') ||
+      query.includes('apaga pc') ||
+      query.includes('apagar pc') ||
+      query.includes('apaga el computador') ||
+      query.includes('apagar el computador') ||
+      query.includes('apaga la computadora') ||
+      query.includes('apagar la computadora')
+
+    // 4. Screen / PC: ON
+    const wantsScreenOn =
+      !wantsScreenOff &&
+      (query.includes('turn on screen') ||
+        query.includes('screen on') ||
+        query.includes('turn on pc') ||
+        query.includes('power on pc') ||
+        query.includes('boot pc') ||
+        query.includes('start pc') ||
+        query.includes('pc on') ||
+        query.includes('prende la pantalla') ||
+        query.includes('prender la pantalla') ||
+        query.includes('prende pantalla') ||
+        query.includes('prender pantalla') ||
+        query.includes('enciende la pantalla') ||
+        query.includes('encender la pantalla') ||
+        query.includes('prende el pc') ||
+        query.includes('prender el pc') ||
+        query.includes('prende pc') ||
+        query.includes('prender pc') ||
+        query.includes('enciende el pc') ||
+        query.includes('encender el pc') ||
+        query.includes('prende el computador') ||
+        query.includes('prender el computador') ||
+        query.includes('iniciar pc'))
+
+    if (wantsScreenOff) {
+      executeMcpTool('power_device', { target: 'pc', state: false })
+      executeMcpTool('set_screen_mode', { mode: 'off' })
+      matchedAny = true
+    } else if (wantsScreenOn) {
       executeMcpTool('power_device', { target: 'pc', state: true })
       executeMcpTool('set_screen_mode', { mode: 'matrix' })
-    } else if (query.includes('power off pc') || query.includes('shutdown') || (query.includes('off') && query.includes('pc'))) {
-      executeMcpTool('power_device', { target: 'pc', state: false })
-    } else if (query.includes('arcade')) {
+      matchedAny = true
+    }
+
+    // 5. Screen Modes (if screen is not turned off)
+    if (!wantsScreenOff) {
+      if (query.includes('matrix') || query.includes('rain') || query.includes('lluvia')) {
+        executeMcpTool('set_screen_mode', { mode: 'matrix' })
+        matchedAny = true
+      } else if (query.includes('terminal') || query.includes('console') || query.includes('log') || query.includes('consola')) {
+        executeMcpTool('set_screen_mode', { mode: 'terminal' })
+        matchedAny = true
+      } else if (query.includes('logo') || query.includes('textools')) {
+        executeMcpTool('set_screen_mode', { mode: 'textools' })
+        matchedAny = true
+      }
+    }
+
+    // 6. Color Themes (if lights weren't explicitly turned off)
+    if (!wantsLightsOff) {
+      if (query.includes('crimson') || query.includes('red') || query.includes('rojo') || query.includes('rojas') || query.includes('carmesi')) {
+        executeMcpTool('set_ambient_lighting', { theme: 'crimson', color: '#ff1e42', intensity: 2.0 })
+        matchedAny = true
+      } else if (query.includes('cyan') || query.includes('cyber') || query.includes('blue') || query.includes('azul') || query.includes('celeste')) {
+        executeMcpTool('set_ambient_lighting', { theme: 'cyber', color: '#00f0ff', intensity: 2.0 })
+        matchedAny = true
+      } else if (query.includes('green') || query.includes('verde')) {
+        executeMcpTool('set_ambient_lighting', { theme: 'matrix', color: '#00ff66', intensity: 1.8 })
+        matchedAny = true
+      }
+    }
+
+    // 7. Arcade Cabinet
+    if (query.includes('arcade') || query.includes('maquinita') || query.includes('fichines')) {
       executeMcpTool('set_camera_view', { preset: 'arcade' })
       executeMcpTool('power_device', { target: 'arcade', state: true })
-    } else if (query.includes('desk') || query.includes('monitor') || query.includes('workstation')) {
-      executeMcpTool('set_camera_view', { preset: 'desk' })
-    } else if (query.includes('room') || query.includes('isometric') || query.includes('overview') || query.includes('reset')) {
-      executeMcpTool('set_camera_view', { preset: 'isometric' })
-    } else if (query.includes('terminal') || query.includes('console') || query.includes('log')) {
-      executeMcpTool('set_screen_mode', { mode: 'terminal' })
-      executeMcpTool('set_camera_view', { preset: 'desk' })
-    } else if (query.includes('logo') || query.includes('textools')) {
-      executeMcpTool('set_screen_mode', { mode: 'textools' })
-    } else if (query.includes('overclock') || query.includes('turbo') || query.includes('boost')) {
+      matchedAny = true
+    }
+
+    // 8. Camera Views (if not already moved by arcade)
+    if (!query.includes('arcade')) {
+      if (query.includes('desk') || query.includes('monitor') || query.includes('workstation') || query.includes('escritorio')) {
+        executeMcpTool('set_camera_view', { preset: 'desk' })
+        matchedAny = true
+      } else if (query.includes('room') || query.includes('isometric') || query.includes('overview') || query.includes('reset') || query.includes('general') || query.includes('habitacion') || query.includes('cuarto')) {
+        executeMcpTool('set_camera_view', { preset: 'isometric' })
+        matchedAny = true
+      }
+    }
+
+    // 9. Overclock
+    if (query.includes('overclock') || query.includes('turbo') || query.includes('boost') || query.includes('sobrecarga') || query.includes('sobrecargar')) {
       executeMcpTool('overclock_system', { enabled: true })
-    } else {
-      executeMcpTool('set_ambient_lighting', { theme: 'cyber', intensity: 1.8 })
+      matchedAny = true
+    }
+
+    // Fallback if nothing matched
+    if (!matchedAny) {
+      executeMcpTool('set_ambient_lighting', { theme: 'cyber', intensity: 2.0 })
     }
 
     promptInput.value = ''

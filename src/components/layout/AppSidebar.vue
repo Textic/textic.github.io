@@ -10,7 +10,7 @@ export type ActiveViewId =
   | 'dev-cipher'
   | 'dev-time'
   | 'dev-colors'
-  | 'dev-msp-playground'
+  | 'dev-mcp-playground'
   | 'dev-dotfiles'
   | 'skills-catalog'
   | 'links-tools' 
@@ -73,7 +73,7 @@ const categories = ref<NavCategory[]>([
     icon: '📁',
     isOpen: true,
     items: [
-      { id: 'dev-msp-playground', label: 'MSP Playground', icon: '🌌', badge: '3D LAB' },
+      { id: 'dev-mcp-playground', label: 'MCP Playground', icon: '🌌', badge: '3D LAB' },
       { id: 'dev-dotfiles', label: 'Dotfiles', icon: '💻', badge: 'SETUP' }
     ]
   },

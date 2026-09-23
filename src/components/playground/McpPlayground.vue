@@ -916,7 +916,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="msp-playground-container">
+  <div class="mcp-playground-container">
     <!-- Top Control Bar (HUD) -->
     <header class="playground-topbar">
       <div class="topbar-left">
@@ -924,7 +924,7 @@ onUnmounted(() => {
           <span class="pulse-dot"></span>
           WEBMCP 3D LAB
         </div>
-        <h2 class="playground-title">MSP Playground</h2>
+        <h2 class="playground-title">MCP Playground</h2>
         <span class="theme-chip" :style="{ borderColor: roomState.lightColor, color: roomState.lightColor }">
           {{ roomState.currentTheme.toUpperCase() }} MODE
         </span>
@@ -1224,7 +1224,7 @@ wss.on('connection', (ws) => {
 </template>
 
 <style scoped>
-.msp-playground-container {
+.mcp-playground-container {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 120px);

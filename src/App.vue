@@ -107,7 +107,7 @@ onUnmounted(() => {
       <!-- Tool Workspace Area (Full Width) -->
       <main class="workspace-body">
         <Transition name="fade" mode="out-in">
-          <!-- 1. Cyber Snake Arcade -->
+          <!-- 1. Snake Arcade -->
           <div v-if="activeView === 'arcade-snake'" key="snake" class="view-wrapper arcade-view">
             <div class="arcade-card-frame">
               <CyberSnake />
@@ -121,7 +121,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 3. Cyber Minesweeper Arcade -->
+          <!-- 3. Minesweeper Arcade -->
           <div v-else-if="activeView === 'arcade-minesweeper'" key="minesweeper" class="view-wrapper arcade-view">
             <div class="arcade-card-frame">
               <CyberMinesweeper />

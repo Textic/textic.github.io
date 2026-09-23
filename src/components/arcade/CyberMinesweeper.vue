@@ -302,7 +302,7 @@ onUnmounted(() => {
     <!-- Top Control Console Bar -->
     <div class="mines-console">
       <div class="console-left">
-        <span class="console-title">💣 Cyber Minesweeper</span>
+        <span class="console-title">💣 Minesweeper</span>
         <!-- Difficulty Selectors -->
         <div class="diff-tabs">
           <button

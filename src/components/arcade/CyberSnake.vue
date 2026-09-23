@@ -233,7 +233,7 @@ const triggerGameOver = () => {
       <!-- Overlay: Start Screen -->
       <div v-if="!gameStarted" class="overlay-screen">
         <div class="overlay-badge">ARCADE EDITION</div>
-        <h3 class="overlay-title">CYBER SNAKE</h3>
+        <h3 class="overlay-title">SNAKE</h3>
         <p class="overlay-desc">
           Eat neon energy nodes. Avoid structural walls and self-collision.
         </p>

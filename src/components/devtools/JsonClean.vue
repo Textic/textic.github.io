@@ -74,7 +74,7 @@ const loadSample = () => {
     project: "TexTools",
     version: "2.0.0",
     theme: "Dark & Crimson Red",
-    features: ["CipherLab", "PassFort", "JSON Clean", "Cyber Snake", "Typing Blitz"],
+    features: ["CipherLab", "PassFort", "JSON Clean", "Snake", "Typing Blitz", "Minesweeper"],
     active: true,
     stats: {
       stars: 42,

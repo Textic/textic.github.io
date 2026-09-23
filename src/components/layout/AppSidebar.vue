@@ -47,9 +47,9 @@ const categories = ref<NavCategory[]>([
     icon: '🎮',
     isOpen: true,
     items: [
+      { id: 'arcade-minesweeper', label: 'Minesweeper', icon: '💣', badge: 'TACTIC' },
       { id: 'arcade-typing', label: 'Typing Blitz', icon: '⌨️', badge: 'PRO' },
-      { id: 'arcade-snake', label: 'Cyber Snake', icon: '🐍', badge: 'CANVAS' },
-      { id: 'arcade-minesweeper', label: 'Cyber Minesweeper', icon: '💣', badge: 'TACTIC' }
+      { id: 'arcade-snake', label: 'Snake', icon: '🐍', badge: 'CANVAS' }
     ]
   },
   {

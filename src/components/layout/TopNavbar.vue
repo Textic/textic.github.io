@@ -43,12 +43,12 @@ onUnmounted(() => {
 
 const getViewMetadata = (id: ActiveViewId) => {
   switch (id) {
-    case 'arcade-snake':
-      return { category: 'Arcade Games', title: 'Cyber Snake', icon: '🐍', tag: 'CANVAS MACHINE' }
+    case 'arcade-minesweeper':
+      return { category: 'Arcade Games', title: 'Minesweeper', icon: '💣', tag: 'TACTICAL MATRIX' }
     case 'arcade-typing':
       return { category: 'Arcade Games', title: 'Typing Blitz', icon: '⌨️', tag: 'SPEED CHALLENGE' }
-    case 'arcade-minesweeper':
-      return { category: 'Arcade Games', title: 'Cyber Minesweeper', icon: '💣', tag: 'TACTICAL MATRIX' }
+    case 'arcade-snake':
+      return { category: 'Arcade Games', title: 'Snake', icon: '🐍', tag: 'CANVAS MACHINE' }
     case 'dev-passfort':
       return { category: 'Dev Utilities', title: 'PassFort Generator', icon: '🔐', tag: 'ENTROPY SECURITY' }
     case 'dev-json':

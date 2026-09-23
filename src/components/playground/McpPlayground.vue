@@ -27,14 +27,14 @@ const MCP_TOOLS: McpTool[] = [
           enum: ['crimson', 'cyber', 'matrix', 'night', 'day']
         },
         color: { type: 'string', description: 'Hex color string (e.g. #ff1e42)' },
-        intensity: { type: 'number', description: 'Light intensity from 0.0 to 2.0' }
+        intensity: { type: 'number', description: 'Light intensity multiplier from 0.0 to 3.0' }
       },
       required: ['theme']
     }
   },
   {
     name: 'power_device',
-    description: 'Turn on or off devices inside the cyber room (PC, Arcade Cabinet, or Room Lights).',
+    description: 'Turn on or off devices inside the room (PC, Arcade Cabinet, or Room Lights).',
     parameters: {
       type: 'object',
       properties: {
@@ -131,11 +131,15 @@ let animFrameId: number | null = null
 
 // Scene Object References
 let ambientLight: THREE.AmbientLight
+let hemiLight: THREE.HemisphereLight
+let dirLight: THREE.DirectionalLight
 let roomCeilingLight: THREE.PointLight
 let deskLedLight: THREE.PointLight
+let monitorBackglowLight: THREE.PointLight
 let pcRgbLight: THREE.PointLight
-let arcadeMarqueeLight: THREE.PointLight
+let arcadePointLight: THREE.PointLight
 let deskLedMesh: THREE.Mesh
+let wallTrimMeshes: THREE.Mesh[] = []
 let fanMeshes: THREE.Mesh[] = []
 
 // Dynamic Monitor Screen Canvas Texture
@@ -145,9 +149,16 @@ let screenTexture: THREE.CanvasTexture | null
 let matrixDrops: number[] = []
 let terminalLines: string[] = []
 
+// Dynamic Arcade Screen Canvas Texture
+let arcadeCanvas: HTMLCanvasElement
+let arcadeCtx: CanvasRenderingContext2D | null
+let arcadeTexture: THREE.CanvasTexture | null
+let arcadeInvaderX = 50
+let arcadeInvaderDir = 1
+
 // Camera Animation State
-const targetCamPos = new THREE.Vector3(9, 7, 9)
-const targetCamLook = new THREE.Vector3(0, 1.2, 0)
+const targetCamPos = new THREE.Vector3(8.5, 7.5, 8.5)
+const targetCamLook = new THREE.Vector3(0, 1.4, 0)
 
 // Helper: Push JSON-RPC Log
 const pushRpcLog = (direction: 'call' | 'result' | 'error', method: string, data: unknown) => {
@@ -270,6 +281,69 @@ const updateScreenCanvas = () => {
   if (screenTexture) screenTexture.needsUpdate = true
 }
 
+// --- Dynamic Arcade Screen Canvas Texture ---
+const initArcadeCanvas = () => {
+  arcadeCanvas = document.createElement('canvas')
+  arcadeCanvas.width = 256
+  arcadeCanvas.height = 256
+  arcadeCtx = arcadeCanvas.getContext('2d')
+  arcadeTexture = new THREE.CanvasTexture(arcadeCanvas)
+  arcadeTexture.generateMipmaps = false
+  arcadeTexture.minFilter = THREE.LinearFilter
+}
+
+const updateArcadeCanvas = () => {
+  if (!arcadeCtx) return
+
+  if (!roomState.arcadeOn) {
+    arcadeCtx.fillStyle = '#05070a'
+    arcadeCtx.fillRect(0, 0, 256, 256)
+    if (arcadeTexture) arcadeTexture.needsUpdate = true
+    return
+  }
+
+  // Retro arcade screen background
+  arcadeCtx.fillStyle = '#100826'
+  arcadeCtx.fillRect(0, 0, 256, 256)
+
+  // Neon Arcade Banner
+  arcadeCtx.fillStyle = '#ff007f'
+  arcadeCtx.font = 'bold 22px monospace'
+  arcadeCtx.textAlign = 'center'
+  arcadeCtx.fillText('TEX-ARCADE', 128, 44)
+
+  // Scores
+  arcadeCtx.fillStyle = '#00f0ff'
+  arcadeCtx.font = 'bold 13px monospace'
+  arcadeCtx.fillText('1UP 09420   HIGH 99990', 128, 72)
+
+  // Moving animated pixel alien
+  arcadeInvaderX += arcadeInvaderDir * 1.6
+  if (arcadeInvaderX > 170 || arcadeInvaderX < 40) arcadeInvaderDir *= -1
+
+  arcadeCtx.fillStyle = '#00ff88'
+  arcadeCtx.fillRect(arcadeInvaderX, 110, 48, 28)
+  arcadeCtx.fillStyle = '#100826'
+  arcadeCtx.fillRect(arcadeInvaderX + 8, 118, 10, 10)
+  arcadeCtx.fillRect(arcadeInvaderX + 30, 118, 10, 10)
+
+  // Blinking Insert Coin
+  if (Math.floor(Date.now() / 500) % 2 === 0) {
+    arcadeCtx.fillStyle = '#ffaa00'
+    arcadeCtx.font = 'bold 14px monospace'
+    arcadeCtx.fillText('★ INSERT COIN ★', 128, 195)
+  }
+
+  // Scanline overlay
+  arcadeCtx.fillStyle = 'rgba(0, 0, 0, 0.25)'
+  for (let y = 0; y < 256; y += 4) {
+    arcadeCtx.fillRect(0, y, 256, 2)
+  }
+
+  arcadeCtx.textAlign = 'start'
+  if (arcadeTexture) arcadeTexture.needsUpdate = true
+}
+
 // --- Three.js Procedural Room Builder ---
 const buildScene = () => {
   if (!canvasContainer.value) return
@@ -277,23 +351,23 @@ const buildScene = () => {
   const width = canvasContainer.value.clientWidth
   const height = canvasContainer.value.clientHeight
 
-  // 1. Scene & Fog
+  // 1. Scene & Subtle Linear Fog
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x0a0c10)
-  scene.fog = new THREE.FogExp2(0x0a0c10, 0.035)
+  scene.background = new THREE.Color(0x0c1017)
+  scene.fog = new THREE.Fog(0x0c1017, 24, 52)
 
   // 2. Camera
   camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
   camera.position.copy(targetCamPos)
 
-  // 3. Renderer
+  // 3. Renderer with ACESFilmic Tone Mapping and Exposure
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
   renderer.setSize(width, height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.1
+  renderer.toneMappingExposure = 1.3
 
   canvasContainer.value.appendChild(renderer.domElement)
 
@@ -306,47 +380,70 @@ const buildScene = () => {
   controls.maxDistance = 22
   controls.target.copy(targetCamLook)
 
-  // --- Lighting Setup ---
-  ambientLight = new THREE.AmbientLight(0x2d3748, 0.6)
+  // --- Lighting System (Clear, High-Fidelity Illumination) ---
+  // A. Hemisphere Fill Light: Ice blue sky, deep slate ground
+  hemiLight = new THREE.HemisphereLight(0xe2e8f0, 0x1e2738, 1.3)
+  scene.add(hemiLight)
+
+  // B. Main Directional Key Light: Bright, clean shadows on desk and arcade
+  dirLight = new THREE.DirectionalLight(0xffffff, 2.2)
+  dirLight.position.set(10, 16, 10)
+  dirLight.target.position.set(0, 1.5, 0)
+  dirLight.castShadow = true
+  dirLight.shadow.mapSize.width = 2048
+  dirLight.shadow.mapSize.height = 2048
+  dirLight.shadow.bias = -0.001
+  dirLight.shadow.camera.near = 2
+  dirLight.shadow.camera.far = 40
+  dirLight.shadow.camera.left = -9
+  dirLight.shadow.camera.right = 9
+  dirLight.shadow.camera.top = 9
+  dirLight.shadow.camera.bottom = -9
+  scene.add(dirLight)
+  scene.add(dirLight.target)
+
+  // C. Soft Ambient Base Light
+  ambientLight = new THREE.AmbientLight(0xffffff, 0.45)
   scene.add(ambientLight)
 
-  // Main Ceiling Point Light (the room primary illumination)
-  roomCeilingLight = new THREE.PointLight(0xff1e42, 1.8, 16, 1.4)
+  // D. Main Ceiling Point Light (Warm neutral with high lumen radius)
+  roomCeilingLight = new THREE.PointLight(0xfff0f5, 2.2, 16, 1.2)
   roomCeilingLight.position.set(0, 4.8, 0)
-  roomCeilingLight.castShadow = true
-  roomCeilingLight.shadow.mapSize.width = 1024
-  roomCeilingLight.shadow.mapSize.height = 1024
-  roomCeilingLight.shadow.bias = -0.002
   scene.add(roomCeilingLight)
 
-  // Ceiling Light Fixture (Visual Mesh)
-  const lampGeo = new THREE.CylinderGeometry(0.4, 0.6, 0.2, 16)
-  const lampMat = new THREE.MeshStandardMaterial({ color: 0x111622, roughness: 0.3, metalness: 0.8 })
+  // Ceiling Light Fixture Mesh
+  const lampGeo = new THREE.CylinderGeometry(0.5, 0.7, 0.25, 16)
+  const lampMat = new THREE.MeshStandardMaterial({ color: 0x222a3a, roughness: 0.3, metalness: 0.8 })
   const lampMesh = new THREE.Mesh(lampGeo, lampMat)
   lampMesh.position.set(0, 4.9, 0)
   scene.add(lampMesh)
 
-  // Desk LED Strip Light
-  deskLedLight = new THREE.PointLight(0xff1e42, 1.2, 5, 1.8)
-  deskLedLight.position.set(0, 1.6, -1.8)
+  // E. Desk LED Underglow Light
+  deskLedLight = new THREE.PointLight(0xff1e42, 1.6, 6, 1.4)
+  deskLedLight.position.set(0, 1.6, -0.6)
   scene.add(deskLedLight)
 
-  // PC RGB Light
-  pcRgbLight = new THREE.PointLight(0xff0055, 1.0, 3.5, 1.8)
-  pcRgbLight.position.set(2.4, 1.9, -1.5)
+  // F. Monitor Backglow Light (Casts colored glow onto back wall)
+  monitorBackglowLight = new THREE.PointLight(0xff1e42, 2.2, 7, 1.4)
+  monitorBackglowLight.position.set(0, 2.8, -2.4)
+  scene.add(monitorBackglowLight)
+
+  // G. PC RGB Interior Light
+  pcRgbLight = new THREE.PointLight(0xff0055, 1.8, 4, 1.5)
+  pcRgbLight.position.set(2.2, 2.1, -1.6)
   scene.add(pcRgbLight)
 
-  // Arcade Marquee Light
-  arcadeMarqueeLight = new THREE.PointLight(0x00f0ff, 1.2, 4.5, 1.6)
-  arcadeMarqueeLight.position.set(-3.2, 3.2, -1.6)
-  scene.add(arcadeMarqueeLight)
+  // H. Arcade Cabinet Spotlight
+  arcadePointLight = new THREE.PointLight(0x00f0ff, 2.4, 6, 1.4)
+  arcadePointLight.position.set(-3.6, 3.4, 0.4)
+  scene.add(arcadePointLight)
 
   // --- Room Geometry (Floor & Isometric Walls) ---
   // Floor
   const floorGeo = new THREE.PlaneGeometry(12, 12)
   const floorMat = new THREE.MeshStandardMaterial({
-    color: 0x0e121a,
-    roughness: 0.6,
+    color: 0x161d2b,
+    roughness: 0.45,
     metalness: 0.3
   })
   const floor = new THREE.Mesh(floorGeo, floorMat)
@@ -354,13 +451,13 @@ const buildScene = () => {
   floor.receiveShadow = true
   scene.add(floor)
 
-  // Subtle Floor Grid Helper
-  const grid = new THREE.GridHelper(12, 16, 0xff1e42, 0x1c2436)
+  // Floor Grid: Crisp, high-contrast lines
+  const grid = new THREE.GridHelper(12, 16, 0xff1e42, 0x2e3d54)
   grid.position.y = 0.005
   scene.add(grid)
 
   // Back Wall (Z = -6)
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x0f1420, roughness: 0.8 })
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2538, roughness: 0.5, metalness: 0.2 })
   const backWallGeo = new THREE.BoxGeometry(12, 6, 0.2)
   const backWall = new THREE.Mesh(backWallGeo, wallMat)
   backWall.position.set(0, 3, -6)
@@ -374,15 +471,25 @@ const buildScene = () => {
   leftWall.receiveShadow = true
   scene.add(leftWall)
 
-  // Baseboards / Cyber Neon Trims
+  // Wall Accent Trims & Cyber Bars
+  wallTrimMeshes = []
   const trimMat = new THREE.MeshBasicMaterial({ color: 0xff1e42 })
-  const trimBack = new THREE.Mesh(new THREE.BoxGeometry(12, 0.05, 0.05), trimMat)
-  trimBack.position.set(0, 0.025, -5.9)
-  scene.add(trimBack)
 
-  const trimLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 12), trimMat)
-  trimLeft.position.set(-5.9, 0.025, 0)
+  const trimBack = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.06), trimMat)
+  trimBack.position.set(0, 0.03, -5.9)
+  scene.add(trimBack)
+  wallTrimMeshes.push(trimBack)
+
+  const trimLeft = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 12), trimMat)
+  trimLeft.position.set(-5.9, 0.03, 0)
   scene.add(trimLeft)
+  wallTrimMeshes.push(trimLeft)
+
+  // Mid-wall glowing neon bar
+  const wallBar = new THREE.Mesh(new THREE.BoxGeometry(10, 0.05, 0.05), trimMat)
+  wallBar.position.set(0, 3.8, -5.88)
+  scene.add(wallBar)
+  wallTrimMeshes.push(wallBar)
 
   // --- Battlestation Desk ---
   const deskGroup = new THREE.Group()
@@ -390,9 +497,9 @@ const buildScene = () => {
   // Table Top
   const deskTopGeo = new THREE.BoxGeometry(5.4, 0.12, 2.2)
   const deskTopMat = new THREE.MeshStandardMaterial({
-    color: 0x151b27,
-    roughness: 0.3,
-    metalness: 0.6
+    color: 0x222c3e,
+    roughness: 0.35,
+    metalness: 0.4
   })
   const deskTop = new THREE.Mesh(deskTopGeo, deskTopMat)
   deskTop.position.set(0, 1.7, -1.6)
@@ -407,8 +514,8 @@ const buildScene = () => {
   deskLedMesh.position.set(0, 1.68, -0.48)
   deskGroup.add(deskLedMesh)
 
-  // Desk Legs (Metallic Modern K-Frame)
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x0b0e14, roughness: 0.5, metalness: 0.8 })
+  // Desk Legs (Metallic Modern Frame)
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x141b29, roughness: 0.4, metalness: 0.8 })
   const legGeo = new THREE.BoxGeometry(0.12, 1.7, 1.8)
 
   const leftLeg = new THREE.Mesh(legGeo, legMat)
@@ -423,14 +530,14 @@ const buildScene = () => {
 
   // Desk Mat / Mousepad
   const padGeo = new THREE.BoxGeometry(3.6, 0.02, 1.2)
-  const padMat = new THREE.MeshStandardMaterial({ color: 0x090c12, roughness: 0.9 })
+  const padMat = new THREE.MeshStandardMaterial({ color: 0x0f1522, roughness: 0.9 })
   const deskPad = new THREE.Mesh(padGeo, padMat)
   deskPad.position.set(0, 1.765, -1.4)
   deskGroup.add(deskPad)
 
   // Mechanical Keyboard
   const kbGeo = new THREE.BoxGeometry(1.6, 0.04, 0.55)
-  const kbMat = new THREE.MeshStandardMaterial({ color: 0x1a2130, roughness: 0.4 })
+  const kbMat = new THREE.MeshStandardMaterial({ color: 0x1a2335, roughness: 0.4 })
   const kb = new THREE.Mesh(kbGeo, kbMat)
   kb.position.set(-0.2, 1.78, -1.3)
   kb.castShadow = true
@@ -438,7 +545,7 @@ const buildScene = () => {
 
   // Mouse
   const mouseGeo = new THREE.BoxGeometry(0.2, 0.04, 0.35)
-  const mouseMat = new THREE.MeshStandardMaterial({ color: 0x222a3a, roughness: 0.3 })
+  const mouseMat = new THREE.MeshStandardMaterial({ color: 0x2a354c, roughness: 0.3 })
   const mouse = new THREE.Mesh(mouseGeo, mouseMat)
   mouse.position.set(1.0, 1.78, -1.3)
   deskGroup.add(mouse)
@@ -446,21 +553,21 @@ const buildScene = () => {
   // Ultrawide Curved Monitor
   const monitorStandBase = new THREE.Mesh(
     new THREE.BoxGeometry(0.8, 0.04, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0x111622, metalness: 0.7 })
+    new THREE.MeshStandardMaterial({ color: 0x1a2130, metalness: 0.7 })
   )
   monitorStandBase.position.set(0, 1.78, -2.1)
   deskGroup.add(monitorStandBase)
 
   const monitorArm = new THREE.Mesh(
     new THREE.CylinderGeometry(0.06, 0.06, 0.9),
-    new THREE.MeshStandardMaterial({ color: 0x111622, metalness: 0.8 })
+    new THREE.MeshStandardMaterial({ color: 0x1a2130, metalness: 0.8 })
   )
   monitorArm.position.set(0, 2.2, -2.1)
   deskGroup.add(monitorArm)
 
   // Screen Frame
   const frameGeo = new THREE.BoxGeometry(3.4, 1.5, 0.1)
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x0d121c, roughness: 0.4, metalness: 0.6 })
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x121724, roughness: 0.4, metalness: 0.6 })
   const screenFrame = new THREE.Mesh(frameGeo, frameMat)
   screenFrame.position.set(0, 2.7, -1.95)
   screenFrame.castShadow = true
@@ -480,7 +587,7 @@ const buildScene = () => {
 
   // Case Body (Matte Black)
   const pcBodyGeo = new THREE.BoxGeometry(0.7, 1.3, 1.4)
-  const pcBodyMat = new THREE.MeshStandardMaterial({ color: 0x0e131d, roughness: 0.4, metalness: 0.8 })
+  const pcBodyMat = new THREE.MeshStandardMaterial({ color: 0x101522, roughness: 0.4, metalness: 0.8 })
   const pcBody = new THREE.Mesh(pcBodyGeo, pcBodyMat)
   pcBody.position.set(0, 0.65, 0)
   pcBody.castShadow = true
@@ -491,7 +598,7 @@ const buildScene = () => {
   const glassMat = new THREE.MeshPhysicalMaterial({
     color: 0x1e283d,
     transparent: true,
-    opacity: 0.35,
+    opacity: 0.4,
     roughness: 0.1,
     transmission: 0.9,
     thickness: 0.5
@@ -522,7 +629,7 @@ const buildScene = () => {
 
   // Seat
   const seatGeo = new THREE.BoxGeometry(1.4, 0.16, 1.3)
-  const chairMat = new THREE.MeshStandardMaterial({ color: 0x161c28, roughness: 0.6 })
+  const chairMat = new THREE.MeshStandardMaterial({ color: 0x1a2233, roughness: 0.6 })
   const seat = new THREE.Mesh(seatGeo, chairMat)
   seat.position.set(0, 1.2, 0)
   seat.castShadow = true
@@ -554,55 +661,118 @@ const buildScene = () => {
   }
   scene.add(chairGroup)
 
-  // --- Retro Arcade Cabinet in Corner ---
+  // --- Retro Arcade Cabinet (Visible, Front-Facing & Well-Lit) ---
+  initArcadeCanvas()
   const arcadeGroup = new THREE.Group()
-  arcadeGroup.position.set(-4.0, 0, -3.2)
-  arcadeGroup.rotation.y = Math.PI / 4
+  arcadeGroup.position.set(-3.6, 0, 0.4)
+  arcadeGroup.rotation.y = Math.PI / 4 // 45 degrees facing towards camera and room center
 
-  // Main Cabinet Body
-  const arcBodyGeo = new THREE.BoxGeometry(1.8, 3.8, 1.6)
+  // Main Cabinet Body (Retro dark violet / indigo)
+  const arcBodyGeo = new THREE.BoxGeometry(1.7, 3.6, 1.5)
   const arcBodyMat = new THREE.MeshStandardMaterial({
-    color: 0x111520,
-    roughness: 0.5,
+    color: 0x241d3e,
+    roughness: 0.4,
     metalness: 0.4
   })
   const arcBody = new THREE.Mesh(arcBodyGeo, arcBodyMat)
-  arcBody.position.set(0, 1.9, 0)
+  arcBody.position.set(0, 1.8, 0)
   arcBody.castShadow = true
+  arcBody.receiveShadow = true
   arcadeGroup.add(arcBody)
 
-  // Angled Control Deck
-  const deckGeo = new THREE.BoxGeometry(1.7, 0.15, 0.8)
-  const deckMat = new THREE.MeshStandardMaterial({ color: 0x1c2333 })
+  // Side decorative neon T-molding trims
+  const arcTrimMat = new THREE.MeshBasicMaterial({ color: 0xff007f })
+  const arcTrimL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.62, 1.52), arcTrimMat)
+  arcTrimL.position.set(-0.85, 1.8, 0)
+  const arcTrimR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.62, 1.52), arcTrimMat)
+  arcTrimR.position.set(0.85, 1.8, 0)
+  arcadeGroup.add(arcTrimL, arcTrimR)
+
+  // Control Deck
+  const deckGeo = new THREE.BoxGeometry(1.6, 0.15, 0.75)
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0x2b224d, roughness: 0.4 })
   const deck = new THREE.Mesh(deckGeo, deckMat)
-  deck.position.set(0, 1.8, 0.6)
-  deck.rotation.x = 0.25
+  deck.position.set(0, 1.75, 0.6)
+  deck.rotation.x = 0.22
+  deck.castShadow = true
   arcadeGroup.add(deck)
 
-  // Joysticks & Neon Buttons
-  const stickGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.25)
+  // Joysticks & Neon Action Buttons
+  const stickGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.22)
   const stickBallGeo = new THREE.SphereGeometry(0.06)
-  const stickMat = new THREE.MeshBasicMaterial({ color: 0xff1e42 })
 
-  const stick1 = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial({ color: 0x334155 }))
-  stick1.position.set(-0.4, 2.0, 0.6)
-  const ball1 = new THREE.Mesh(stickBallGeo, stickMat)
-  ball1.position.set(-0.4, 2.12, 0.6)
-  arcadeGroup.add(stick1, ball1)
+  // Player 1 (Red stick)
+  const stickP1 = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial({ color: 0x475569 }))
+  stickP1.position.set(-0.45, 1.95, 0.6)
+  const ballP1 = new THREE.Mesh(stickBallGeo, new THREE.MeshBasicMaterial({ color: 0xff1e42 }))
+  ballP1.position.set(-0.45, 2.06, 0.6)
+  arcadeGroup.add(stickP1, ballP1)
 
-  // Arcade Screen (CRT Bezel + Display)
-  const arcScreenGeo = new THREE.PlaneGeometry(1.4, 1.1)
-  const arcScreenMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff })
+  // Player 2 (Cyan stick)
+  const stickP2 = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial({ color: 0x475569 }))
+  stickP2.position.set(0.15, 1.95, 0.6)
+  const ballP2 = new THREE.Mesh(stickBallGeo, new THREE.MeshBasicMaterial({ color: 0x00f0ff }))
+  ballP2.position.set(0.15, 2.06, 0.6)
+  arcadeGroup.add(stickP2, ballP2)
+
+  // Buttons
+  const btnGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.04)
+  const colors = [0xff1e42, 0x00f0ff, 0xffaa00, 0x00ff88]
+  for (let p = 0; p < 2; p++) {
+    for (let b = 0; b < 3; b++) {
+      const btn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: colors[(p * 2 + b) % colors.length] }))
+      btn.position.set(-0.25 + p * 0.6 + (b % 2) * 0.12, 1.88 + Math.floor(b / 2) * 0.05, 0.52 + (b % 2) * 0.08)
+      arcadeGroup.add(btn)
+    }
+  }
+
+  // Coin Door (Lower front)
+  const coinDoor = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.7, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x140e29, metalness: 0.8, roughness: 0.3 })
+  )
+  coinDoor.position.set(0, 0.8, 0.76)
+  arcadeGroup.add(coinDoor)
+
+  // Illuminated Coin Slots
+  for (let c = 0; c < 2; c++) {
+    const slot = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.08, 0.02),
+      new THREE.MeshBasicMaterial({ color: 0xff8800 })
+    )
+    slot.position.set(-0.2 + c * 0.4, 0.9, 0.79)
+    arcadeGroup.add(slot)
+  }
+
+  // Arcade CRT Screen (Connected to Dynamic Arcade Canvas)
+  const arcScreenGeo = new THREE.PlaneGeometry(1.35, 1.05)
+  const arcScreenMat = new THREE.MeshBasicMaterial({ map: arcadeTexture })
   const arcScreen = new THREE.Mesh(arcScreenGeo, arcScreenMat)
-  arcScreen.position.set(0, 2.65, 0.71)
-  arcScreen.rotation.x = -0.15
+  arcScreen.position.set(0, 2.5, 0.68)
+  arcScreen.rotation.x = -0.18
   arcadeGroup.add(arcScreen)
 
   // Glowing Marquee Sign
-  const marqueeGeo = new THREE.BoxGeometry(1.7, 0.4, 0.15)
-  const marqueeMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff })
+  const marqueeCanvas = document.createElement('canvas')
+  marqueeCanvas.width = 512
+  marqueeCanvas.height = 128
+  const mCtx = marqueeCanvas.getContext('2d')
+  if (mCtx) {
+    mCtx.fillStyle = '#160829'
+    mCtx.fillRect(0, 0, 512, 128)
+    mCtx.strokeStyle = '#00f0ff'
+    mCtx.lineWidth = 8
+    mCtx.strokeRect(8, 8, 496, 112)
+    mCtx.fillStyle = '#ff007f'
+    mCtx.font = 'bold 64px monospace'
+    mCtx.textAlign = 'center'
+    mCtx.fillText('★ ARCADE ★', 256, 88)
+  }
+  const marqueeTexture = new THREE.CanvasTexture(marqueeCanvas)
+  const marqueeGeo = new THREE.BoxGeometry(1.6, 0.45, 0.12)
+  const marqueeMat = new THREE.MeshBasicMaterial({ map: marqueeTexture })
   const marquee = new THREE.Mesh(marqueeGeo, marqueeMat)
-  marquee.position.set(0, 3.55, 0.65)
+  marquee.position.set(0, 3.35, 0.62)
   arcadeGroup.add(marquee)
 
   scene.add(arcadeGroup)
@@ -610,7 +780,7 @@ const buildScene = () => {
   // --- Wall Props: Cyber Shelf & LED Wall Sign ---
   const shelf = new THREE.Mesh(
     new THREE.BoxGeometry(3.0, 0.08, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0x151b27, roughness: 0.4 })
+    new THREE.MeshStandardMaterial({ color: 0x1f293d, roughness: 0.4 })
   )
   shelf.position.set(0, 4.4, -5.7)
   scene.add(shelf)
@@ -618,7 +788,7 @@ const buildScene = () => {
   // Neon Wall Sign: "TEXTOOLS // LAB"
   const signBack = new THREE.Mesh(
     new THREE.BoxGeometry(3.6, 0.7, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x090c12, roughness: 0.9 })
+    new THREE.MeshStandardMaterial({ color: 0x0e1422, roughness: 0.9 })
   )
   signBack.position.set(-3.2, 4.2, -5.9)
   scene.add(signBack)
@@ -649,11 +819,12 @@ const buildScene = () => {
     // Pulse Lights if Overclocked
     if (roomState.isOverclocked && pcRgbLight) {
       const pulse = 1.0 + Math.sin(now * 0.008) * 0.5
-      pcRgbLight.intensity = pulse * 1.5
+      pcRgbLight.intensity = pulse * 1.8
     }
 
-    // Update screen canvas texture
+    // Update dynamic screen canvas textures
     updateScreenCanvas()
+    updateArcadeCanvas()
 
     if (renderer && scene && camera) {
       renderer.render(scene, camera)
@@ -699,7 +870,7 @@ const executeMcpTool = (name: string, args: Record<string, unknown>) => {
       else if (theme === 'cyber') hex = 0x00f0ff
       else if (theme === 'matrix') hex = 0x00ff66
       else if (theme === 'night') hex = 0x3b82f6
-      else if (theme === 'day') hex = 0xffeebb
+      else if (theme === 'day') hex = 0xffeedd
 
       if (args.color && typeof args.color === 'string') {
         hex = parseInt((args.color as string).replace('#', '0x'), 16) || hex
@@ -707,19 +878,32 @@ const executeMcpTool = (name: string, args: Record<string, unknown>) => {
 
       roomState.lightColor = `#${hex.toString(16).padStart(6, '0')}`
 
+      if (dirLight) {
+        dirLight.intensity = roomState.lightsOn ? (theme === 'day' ? 2.6 : 2.0) : 0.4
+      }
+      if (hemiLight) {
+        hemiLight.intensity = roomState.lightsOn ? 1.2 : 0.3
+      }
       if (roomCeilingLight) {
-        roomCeilingLight.color.setHex(hex)
-        roomCeilingLight.intensity = roomState.lightsOn ? intensity : 0.08
+        roomCeilingLight.color.setHex(theme === 'crimson' ? 0xfff0f5 : hex)
+        roomCeilingLight.intensity = roomState.lightsOn ? intensity * 1.4 : 0.1
       }
       if (deskLedLight) {
         deskLedLight.color.setHex(hex)
-        deskLedLight.intensity = roomState.lightsOn ? intensity * 0.8 : 0.05
+        deskLedLight.intensity = roomState.lightsOn ? intensity * 1.2 : 0.1
+      }
+      if (monitorBackglowLight) {
+        monitorBackglowLight.color.setHex(hex)
+        monitorBackglowLight.intensity = roomState.lightsOn ? intensity * 1.5 : 0.2
       }
       if (deskLedMesh) {
         (deskLedMesh.material as THREE.MeshBasicMaterial).color.setHex(hex)
       }
+      wallTrimMeshes.forEach(mesh => {
+        (mesh.material as THREE.MeshBasicMaterial).color.setHex(hex)
+      })
       if (ambientLight) {
-        ambientLight.intensity = roomState.lightsOn ? 0.6 : 0.15
+        ambientLight.intensity = roomState.lightsOn ? 0.45 : 0.15
       }
 
       resultMessage = `Ambient lighting set: theme=${theme}, intensity=${intensity.toFixed(2)}, color=${roomState.lightColor}`
@@ -734,14 +918,17 @@ const executeMcpTool = (name: string, args: Record<string, unknown>) => {
         roomState.pcOn = state
         if (!state) roomState.screenMode = 'off'
         else if (roomState.screenMode === 'off') roomState.screenMode = 'matrix'
-        if (pcRgbLight) pcRgbLight.intensity = state ? 1.0 : 0
+        if (pcRgbLight) pcRgbLight.intensity = state ? 1.8 : 0
       } else if (target === 'arcade') {
         roomState.arcadeOn = state
-        if (arcadeMarqueeLight) arcadeMarqueeLight.intensity = state ? 1.2 : 0
+        if (arcadePointLight) arcadePointLight.intensity = state ? 2.4 : 0
       } else if (target === 'room') {
         roomState.lightsOn = state
-        if (roomCeilingLight) roomCeilingLight.intensity = state ? 1.8 : 0.08
-        if (deskLedLight) deskLedLight.intensity = state ? 1.2 : 0.05
+        if (dirLight) dirLight.intensity = state ? 2.0 : 0.4
+        if (hemiLight) hemiLight.intensity = state ? 1.2 : 0.3
+        if (roomCeilingLight) roomCeilingLight.intensity = state ? 2.2 : 0.1
+        if (deskLedLight) deskLedLight.intensity = state ? 1.6 : 0.1
+        if (monitorBackglowLight) monitorBackglowLight.intensity = state ? 2.2 : 0.2
       }
 
       resultMessage = `Device '${target}' power changed to ${state ? 'ON' : 'OFF'}`
@@ -761,14 +948,14 @@ const executeMcpTool = (name: string, args: Record<string, unknown>) => {
       roomState.cameraPreset = preset
 
       if (preset === 'isometric') {
-        targetCamPos.set(9, 7, 9)
-        targetCamLook.set(0, 1.2, 0)
+        targetCamPos.set(8.5, 7.5, 8.5)
+        targetCamLook.set(0, 1.4, 0)
       } else if (preset === 'desk') {
-        targetCamPos.set(1.4, 2.9, 1.0)
+        targetCamPos.set(1.4, 2.8, 1.2)
         targetCamLook.set(0.1, 2.3, -1.8)
       } else if (preset === 'arcade') {
-        targetCamPos.set(-2.2, 2.6, -1.2)
-        targetCamLook.set(-4.0, 2.3, -3.2)
+        targetCamPos.set(-1.8, 2.6, 2.2)
+        targetCamLook.set(-3.6, 2.0, 0.4)
       }
       resultMessage = `Camera transition initiated towards preset: '${preset}'`
       break
@@ -780,7 +967,7 @@ const executeMcpTool = (name: string, args: Record<string, unknown>) => {
       roomState.fanSpeedMultiplier = enabled ? 3.5 : 1.0
 
       if (enabled) {
-        executeMcpTool('set_ambient_lighting', { theme: 'crimson', intensity: 2.0 })
+        executeMcpTool('set_ambient_lighting', { theme: 'crimson', intensity: 2.2 })
         executeMcpTool('set_screen_mode', { mode: 'matrix' })
       }
       resultMessage = `Workstation overclocking ${enabled ? 'ENGAGED // MAX PERFORMANCE' : 'DISENGAGED // NORMAL'}`
@@ -801,7 +988,7 @@ const executeMcpTool = (name: string, args: Record<string, unknown>) => {
   terminalLines.push(`[MCP] ${resultMessage}`)
 }
 
-// --- Natural Language Intent Interpreter (Browser AI Simulation) ---
+// --- Natural Language Intent Interpreter (100% English) ---
 const handleNaturalLanguagePrompt = () => {
   const query = promptInput.value.trim().toLowerCase()
   if (!query) return
@@ -809,40 +996,39 @@ const handleNaturalLanguagePrompt = () => {
   isProcessing.value = true
 
   setTimeout(() => {
-    // Keyword pattern matching for agentic action
-    if (query.includes('apaga') && (query.includes('luz') || query.includes('luces') || query.includes('room'))) {
-      executeMcpTool('set_ambient_lighting', { theme: 'night', intensity: 0.1 })
-    } else if (query.includes('prende') && (query.includes('luz') || query.includes('luces'))) {
+    // English Keyword pattern matching for agentic action
+    if (query.includes('turn off') || query.includes('lights off') || query.includes('night') || query.includes('dark')) {
+      executeMcpTool('set_ambient_lighting', { theme: 'night', intensity: 0.15 })
+    } else if (query.includes('turn on') || query.includes('lights on') || query.includes('day')) {
       executeMcpTool('set_ambient_lighting', { theme: 'crimson', intensity: 1.8 })
-    } else if (query.includes('rojo') || query.includes('carmesi') || query.includes('crimson') || query.includes('red')) {
-      executeMcpTool('set_ambient_lighting', { theme: 'crimson', color: '#ff1e42', intensity: 1.8 })
-    } else if (query.includes('cyan') || query.includes('cyber') || query.includes('azul') || query.includes('blue')) {
-      executeMcpTool('set_ambient_lighting', { theme: 'cyber', color: '#00f0ff', intensity: 1.8 })
-    } else if (query.includes('matrix') || query.includes('verde') || query.includes('green')) {
-      executeMcpTool('set_ambient_lighting', { theme: 'matrix', color: '#00ff66', intensity: 1.6 })
+    } else if (query.includes('red') || query.includes('crimson')) {
+      executeMcpTool('set_ambient_lighting', { theme: 'crimson', color: '#ff1e42', intensity: 2.0 })
+    } else if (query.includes('cyan') || query.includes('cyber') || query.includes('blue')) {
+      executeMcpTool('set_ambient_lighting', { theme: 'cyber', color: '#00f0ff', intensity: 2.0 })
+    } else if (query.includes('matrix') || query.includes('green')) {
+      executeMcpTool('set_ambient_lighting', { theme: 'matrix', color: '#00ff66', intensity: 1.8 })
       executeMcpTool('set_screen_mode', { mode: 'matrix' })
-    } else if (query.includes('prende') && (query.includes('pc') || query.includes('computador') || query.includes('ordenador'))) {
+    } else if (query.includes('power on pc') || query.includes('boot pc') || query.includes('start pc') || (query.includes('on') && query.includes('pc'))) {
       executeMcpTool('power_device', { target: 'pc', state: true })
       executeMcpTool('set_screen_mode', { mode: 'matrix' })
-    } else if (query.includes('apaga') && (query.includes('pc') || query.includes('computador'))) {
+    } else if (query.includes('power off pc') || query.includes('shutdown') || (query.includes('off') && query.includes('pc'))) {
       executeMcpTool('power_device', { target: 'pc', state: false })
     } else if (query.includes('arcade')) {
       executeMcpTool('set_camera_view', { preset: 'arcade' })
       executeMcpTool('power_device', { target: 'arcade', state: true })
-    } else if (query.includes('escritorio') || query.includes('desk') || query.includes('monitor')) {
+    } else if (query.includes('desk') || query.includes('monitor') || query.includes('workstation')) {
       executeMcpTool('set_camera_view', { preset: 'desk' })
-    } else if (query.includes('general') || query.includes('isometric') || query.includes('habitacion') || query.includes('room')) {
+    } else if (query.includes('room') || query.includes('isometric') || query.includes('overview') || query.includes('reset')) {
       executeMcpTool('set_camera_view', { preset: 'isometric' })
-    } else if (query.includes('terminal') || query.includes('consola') || query.includes('log')) {
+    } else if (query.includes('terminal') || query.includes('console') || query.includes('log')) {
       executeMcpTool('set_screen_mode', { mode: 'terminal' })
       executeMcpTool('set_camera_view', { preset: 'desk' })
     } else if (query.includes('logo') || query.includes('textools')) {
       executeMcpTool('set_screen_mode', { mode: 'textools' })
-    } else if (query.includes('overclock') || query.includes('turbo') || query.includes('sobrecarga')) {
+    } else if (query.includes('overclock') || query.includes('turbo') || query.includes('boost')) {
       executeMcpTool('overclock_system', { enabled: true })
     } else {
-      // Default: parse as ambient lighting change
-      executeMcpTool('set_ambient_lighting', { theme: 'cyber', intensity: 1.5 })
+      executeMcpTool('set_ambient_lighting', { theme: 'cyber', intensity: 1.8 })
     }
 
     promptInput.value = ''
@@ -991,7 +1177,7 @@ onUnmounted(() => {
             <input 
               v-model="promptInput" 
               type="text" 
-              placeholder="Ask agent: 'apagar luces', 'modo cyber', 'prende pc', 'modo matrix', 'overclock'..."
+              placeholder="Ask agent: 'turn off lights', 'cyber mode', 'power on pc', 'matrix rain', 'overclock'..."
               :disabled="isProcessing"
               @keydown.enter="handleNaturalLanguagePrompt"
             />
@@ -1005,14 +1191,14 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- Quick Suggestion Pills -->
+          <!-- Quick Suggestion Pills (100% English) -->
           <div class="suggestion-pills">
-            <button class="pill" @click="setSamplePrompt('luces rojas carmesí')">🔴 Luces Carmesí</button>
-            <button class="pill" @click="setSamplePrompt('modo cyber cyan')">🔷 Cyber Cyan</button>
-            <button class="pill" @click="setSamplePrompt('modo matrix rain')">🟢 Matrix Screen</button>
-            <button class="pill" @click="setSamplePrompt('enfocar terminal')">💻 Terminal Log</button>
-            <button class="pill" @click="setSamplePrompt('apagar luces de la sala')">🌙 Noche / Off</button>
-            <button class="pill" @click="setSamplePrompt('sobrecargar sistema')">🔥 Overclock PC</button>
+            <button class="pill" @click="setSamplePrompt('crimson theme lights')">🔴 Crimson Theme</button>
+            <button class="pill" @click="setSamplePrompt('cyber cyan lighting')">🔷 Cyber Cyan</button>
+            <button class="pill" @click="setSamplePrompt('matrix rain mode')">🟢 Matrix Rain</button>
+            <button class="pill" @click="setSamplePrompt('view terminal log')">💻 Terminal Log</button>
+            <button class="pill" @click="setSamplePrompt('turn off room lights')">🌙 Night Mood</button>
+            <button class="pill" @click="setSamplePrompt('overclock workstation')">🔥 Overclock PC</button>
           </div>
         </div>
       </div>
@@ -1367,7 +1553,7 @@ wss.on('connection', (ws) => {
 .canvas-viewport {
   flex: 1;
   position: relative;
-  background: #0a0c10;
+  background: #0c1017;
   min-width: 0;
 }
 

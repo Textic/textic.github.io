@@ -60,7 +60,7 @@ const getViewMetadata = (id: ActiveViewId) => {
     case 'dev-colors':
       return { category: 'Dev Utilities', title: 'Color & CSS Studio', icon: '🎨', tag: 'COLOR MATRIX' }
     case 'dev-dotfiles':
-      return { category: 'Dev Utilities', title: 'Windows Dotfiles & Setup', icon: '🪟', tag: 'BOOTSTRAPPER' }
+      return { category: 'Dev Utilities', title: 'Dotfiles & OS Setup', icon: '💻', tag: 'BOOTSTRAPPER' }
     case 'skills-catalog':
       return { category: 'Dev Utilities', title: 'Agent Skills Hub', icon: '⚡', tag: 'AI CLI SKILLS' }
     case 'links-tools':

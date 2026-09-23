@@ -63,7 +63,7 @@ const categories = ref<NavCategory[]>([
       { id: 'dev-colors', label: 'Color & CSS Studio', icon: '🎨', badge: 'PALETTE' },
       { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' },
-      { id: 'dev-dotfiles', label: 'Windows Dotfiles', icon: '🪟', badge: 'SETUP' },
+      { id: 'dev-dotfiles', label: 'Dotfiles', icon: '💻', badge: 'SETUP' },
       { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' }
     ]
   },

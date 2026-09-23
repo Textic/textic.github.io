@@ -12,7 +12,7 @@ import CyberMinesweeper from '@/components/arcade/CyberMinesweeper.vue'
 import UsefulLinks from '@/components/links/UsefulLinks.vue'
 import CdnDrawer from '@/components/layout/CdnDrawer.vue'
 import SkillsHub from '@/components/skills/SkillsHub.vue'
-import WindowsDotfiles from '@/components/dev/WindowsDotfiles.vue'
+import DotfilesSetup from '@/components/dev/DotfilesSetup.vue'
 import TimeStudio from '@/components/devtools/TimeStudio.vue'
 import ColorStudio from '@/components/devtools/ColorStudio.vue'
 
@@ -172,9 +172,9 @@ onUnmounted(() => {
             <SkillsHub />
           </div>
 
-          <!-- 8. Windows Dotfiles & Dev Setup -->
+          <!-- 8. Dotfiles & Dev Setup (Windows & Linux) -->
           <div v-else-if="activeView === 'dev-dotfiles'" key="dotfiles" class="view-wrapper">
-            <WindowsDotfiles />
+            <DotfilesSetup />
           </div>
         </Transition>
       </main>

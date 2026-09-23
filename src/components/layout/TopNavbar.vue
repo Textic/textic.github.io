@@ -59,8 +59,10 @@ const getViewMetadata = (id: ActiveViewId) => {
       return { category: 'Dev Utilities', title: 'Unix Timestamp & Time Studio', icon: '⏱️', tag: 'EPOCH CLOCK' }
     case 'dev-colors':
       return { category: 'Dev Utilities', title: 'Color & CSS Studio', icon: '🎨', tag: 'COLOR MATRIX' }
+    case 'dev-msp-playground':
+      return { category: 'Others', title: 'MSP Playground', icon: '🌌', tag: '3D WEBMCP' }
     case 'dev-dotfiles':
-      return { category: 'Dev Utilities', title: 'Dotfiles & OS Setup', icon: '💻', tag: 'BOOTSTRAPPER' }
+      return { category: 'Others', title: 'Dotfiles & OS Setup', icon: '💻', tag: 'BOOTSTRAPPER' }
     case 'skills-catalog':
       return { category: 'Dev Utilities', title: 'Agent Skills Hub', icon: '⚡', tag: 'AI CLI SKILLS' }
     case 'links-tools':

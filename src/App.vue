@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import AppSidebar, { type ActiveViewId } from '@/components/layout/AppSidebar.vue'
 import TopNavbar from '@/components/layout/TopNavbar.vue'
 import ToastContainer from '@/components/layout/ToastContainer.vue'
@@ -16,6 +16,8 @@ import DotfilesSetup from '@/components/dev/DotfilesSetup.vue'
 import TimeStudio from '@/components/devtools/TimeStudio.vue'
 import ColorStudio from '@/components/devtools/ColorStudio.vue'
 
+const MspPlayground = defineAsyncComponent(() => import('@/components/playground/MspPlayground.vue'))
+
 const VALID_VIEWS: ActiveViewId[] = [
   'arcade-typing',
   'arcade-snake',
@@ -25,6 +27,7 @@ const VALID_VIEWS: ActiveViewId[] = [
   'dev-colors',
   'dev-passfort',
   'dev-json',
+  'dev-msp-playground',
   'dev-dotfiles',
   'skills-catalog',
   'links-tools',
@@ -175,6 +178,11 @@ onUnmounted(() => {
           <!-- 8. Dotfiles & Dev Setup (Windows & Linux) -->
           <div v-else-if="activeView === 'dev-dotfiles'" key="dotfiles" class="view-wrapper">
             <DotfilesSetup />
+          </div>
+
+          <!-- 9. MSP Playground (WebMCP 3D Studio) -->
+          <div v-else-if="activeView === 'dev-msp-playground'" key="msp-playground" class="view-wrapper">
+            <MspPlayground />
           </div>
         </Transition>
       </main>

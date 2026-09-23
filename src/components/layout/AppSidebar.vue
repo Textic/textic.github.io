@@ -10,6 +10,7 @@ export type ActiveViewId =
   | 'dev-cipher'
   | 'dev-time'
   | 'dev-colors'
+  | 'dev-msp-playground'
   | 'dev-dotfiles'
   | 'skills-catalog'
   | 'links-tools' 
@@ -63,8 +64,17 @@ const categories = ref<NavCategory[]>([
       { id: 'dev-colors', label: 'Color & CSS Studio', icon: '🎨', badge: 'PALETTE' },
       { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' },
-      { id: 'dev-dotfiles', label: 'Dotfiles', icon: '💻', badge: 'SETUP' },
       { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' }
+    ]
+  },
+  {
+    id: 'others',
+    title: 'Others',
+    icon: '📁',
+    isOpen: true,
+    items: [
+      { id: 'dev-msp-playground', label: 'MSP Playground', icon: '🌌', badge: '3D LAB' },
+      { id: 'dev-dotfiles', label: 'Dotfiles', icon: '💻', badge: 'SETUP' }
     ]
   },
   {

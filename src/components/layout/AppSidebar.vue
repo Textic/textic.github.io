@@ -10,6 +10,7 @@ export type ActiveViewId =
   | 'dev-cipher'
   | 'dev-time'
   | 'dev-colors'
+  | 'dev-metalens'
   | 'dev-mcp-playground'
   | 'dev-dotfiles'
   | 'skills-catalog'
@@ -64,6 +65,7 @@ const categories = ref<NavCategory[]>([
       { id: 'dev-colors', label: 'Color & CSS Studio', icon: '🎨', badge: 'PALETTE' },
       { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' },
+      { id: 'dev-metalens', label: 'MetaLens', icon: '📸', badge: 'EXIF' },
       { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' }
     ]
   },

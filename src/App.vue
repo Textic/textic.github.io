@@ -17,6 +17,7 @@ import TimeStudio from '@/components/devtools/TimeStudio.vue'
 import ColorStudio from '@/components/devtools/ColorStudio.vue'
 
 const McpPlayground = defineAsyncComponent(() => import('@/components/playground/McpPlayground.vue'))
+const MetaLens = defineAsyncComponent(() => import('@/components/devtools/MetaLens.vue'))
 
 const VALID_VIEWS: ActiveViewId[] = [
   'arcade-typing',
@@ -27,6 +28,7 @@ const VALID_VIEWS: ActiveViewId[] = [
   'dev-colors',
   'dev-passfort',
   'dev-json',
+  'dev-metalens',
   'dev-mcp-playground',
   'dev-dotfiles',
   'skills-catalog',
@@ -183,6 +185,11 @@ onUnmounted(() => {
           <!-- 9. MCP Playground (WebMCP 3D Studio) -->
           <div v-else-if="activeView === 'dev-mcp-playground'" key="mcp-playground" class="view-wrapper">
             <McpPlayground />
+          </div>
+
+          <!-- 10. MetaLens Image EXIF & Metadata Studio -->
+          <div v-else-if="activeView === 'dev-metalens'" key="metalens" class="view-wrapper">
+            <MetaLens />
           </div>
         </Transition>
       </main>

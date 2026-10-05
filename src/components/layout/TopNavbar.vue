@@ -59,6 +59,8 @@ const getViewMetadata = (id: ActiveViewId) => {
       return { category: 'Dev Utilities', title: 'Unix Timestamp & Time Studio', icon: '⏱️', tag: 'EPOCH CLOCK' }
     case 'dev-colors':
       return { category: 'Dev Utilities', title: 'Color & CSS Studio', icon: '🎨', tag: 'COLOR MATRIX' }
+    case 'dev-metalens':
+      return { category: 'Dev Utilities', title: 'MetaLens (Image Metadata & EXIF)', icon: '📸', tag: 'PRIVACY & SPECS' }
     case 'dev-mcp-playground':
       return { category: 'Others', title: 'MCP Playground', icon: '🌌', tag: '3D WEBMCP' }
     case 'dev-dotfiles':

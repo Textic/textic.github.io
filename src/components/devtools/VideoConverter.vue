@@ -537,23 +537,16 @@ onUnmounted(() => {
       <div class="drag-overlay-card">
         <span class="drag-overlay-icon">🎬</span>
         <h3>Drop Video Files Here</h3>
-        <p>100% Client-Side Transcoding • Zero Server Uploads</p>
+        <p>Supports MP4, WebM, MOV, MKV, AVI, GIF, MP3 & WAV</p>
       </div>
     </div>
 
     <!-- Header Console -->
     <header class="videoforge-header">
       <div class="header-left">
-        <div class="header-badge-row">
-          <span class="engine-badge" :class="engineStatus">
-            <span class="dot"></span>
-            {{ engineStatusText }}
-          </span>
-          <span class="privacy-badge">100% CLIENT-SIDE • ZERO UPLOADS</span>
-        </div>
         <h2 class="videoforge-title">🎬 VideoForge Studio</h2>
         <span class="videoforge-desc">
-          Universal Client-Side Video Transcoder, Audio Extractor & High-Fidelity GIF Studio
+          Universal Video Transcoder, Audio Extractor & High-Fidelity GIF Studio
         </span>
       </div>
 
@@ -580,7 +573,7 @@ onUnmounted(() => {
       <div class="dropzone-icon">🎬</div>
       <h3 class="dropzone-title">Drop your video clips here, or click to browse</h3>
       <p class="dropzone-subtitle">
-        Supports MP4, MOV, WebM, MKV, AVI, FLV, WMV, M4V & TS • Transcoded entirely in your browser memory via WebAssembly.
+        Supports MP4, MOV, WebM, MKV, AVI, FLV, WMV, M4V & TS
       </p>
 
       <div class="format-pills-row">
@@ -947,68 +940,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.header-badge-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.engine-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid;
-}
-
-.engine-badge .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.engine-badge.unloaded {
-  background: rgba(100, 116, 139, 0.15);
-  border-color: rgba(100, 116, 139, 0.3);
-  color: #94a3b8;
-}
-.engine-badge.unloaded .dot { background: #94a3b8; }
-
-.engine-badge.loading {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
-}
-.engine-badge.loading .dot { background: #fbbf24; }
-
-.engine-badge.ready {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.35);
-  color: #34d399;
-}
-.engine-badge.ready .dot { background: #10b981; }
-
-.engine-badge.error {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.35);
-  color: #f87171;
-}
-.engine-badge.error .dot { background: #ef4444; }
-
-.privacy-badge {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #00f0ff;
-  background: rgba(0, 240, 255, 0.1);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  padding: 2px 8px;
-  border-radius: 4px;
 }
 
 .videoforge-title {

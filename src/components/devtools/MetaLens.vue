@@ -794,7 +794,7 @@ onUnmounted(() => {
         <span class="replace-overlay-icon">📥</span>
         <h3 v-if="selectedImage">Drop New Image to Replace</h3>
         <h3 v-else>Drop Image Here to Inspect</h3>
-        <p v-if="selectedImage">Existing photo will be swapped instantly • 100% Client-Side</p>
+        <p v-if="selectedImage">Existing photo will be swapped instantly</p>
         <p v-else>Supports JPEG, PNG, WebP, TIFF, HEIC, AVIF & GIF</p>
       </div>
     </div>
@@ -826,7 +826,7 @@ onUnmounted(() => {
       <div class="dropzone-icon">📷</div>
       <h3 class="dropzone-title">Drop your image here, or click to browse</h3>
       <p class="dropzone-subtitle">
-        Supports JPEG, PNG, WebP, TIFF, HEIC, AVIF & GIF • No data leaves your browser.
+        Supports JPEG, PNG, WebP, TIFF, HEIC, AVIF & GIF
       </p>
 
       <div class="dropzone-actions" @click.stop>

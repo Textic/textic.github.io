@@ -17,7 +17,7 @@ const tabs: Array<{ id: TabId; label: string; icon: string }> = [
 </script>
 
 <template>
-  <nav class="nav-row" aria-label="Navegación principal">
+  <nav class="nav-row" aria-label="Main navigation">
     <button
       v-for="tab in tabs"
       :key="tab.id"

@@ -254,7 +254,7 @@ const copySkillCommand = (skill: SkillItem) => {
         <div class="fix-header">
           <div class="fix-title-group">
             <span class="fix-badge">⚡ ANTIGRAVITY GLOBAL BRIDGE</span>
-            <h4 class="fix-title">Vincular Skills Globales con Google Antigravity</h4>
+            <h4 class="fix-title">Link Global Skills with Google Antigravity</h4>
           </div>
           <div class="os-tabs">
             <button
@@ -275,7 +275,7 @@ const copySkillCommand = (skill: SkillItem) => {
         </div>
 
         <p class="fix-desc">
-          La CLI oficial de Vercel Skills guarda las skills globales en <code>~/.agents/skills</code>. Ejecuta este comando de 1 línea una sola vez en tu terminal para sincronizarlas permanentemente con Google Antigravity (<code>.gemini/config/skills</code>):
+          The official Vercel Skills CLI stores global skills in <code>~/.agents/skills</code>. Run this 1-line command once in your terminal to permanently sync them with Google Antigravity (<code>.gemini/config/skills</code>):
         </p>
 
         <div class="fix-command-box" @click="copyFixCommand">
@@ -286,11 +286,11 @@ const copySkillCommand = (skill: SkillItem) => {
           <button
             class="btn-copy-cmd"
             :class="{ copied: copiedFix }"
-            title="Copiar comando de vinculación"
+            title="Copy bridge link command"
             @click.stop="copyFixCommand"
           >
-            <span v-if="copiedFix">✓ Copiado</span>
-            <span v-else>📋 Copiar Fix</span>
+            <span v-if="copiedFix">✓ Copied</span>
+            <span v-else>📋 Copy Bridge Fix</span>
           </button>
         </div>
       </div>

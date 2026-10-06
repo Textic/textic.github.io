@@ -595,10 +595,6 @@ onUnmounted(() => {
     <!-- Header Console -->
     <header class="metalens-header">
       <div class="header-left">
-        <div class="badge-tag">
-          <span class="privacy-dot"></span>
-          100% PRIVATE • CLIENT-SIDE
-        </div>
         <h2 class="metalens-title">📸 MetaLens Studio</h2>
         <span class="metalens-desc">Image EXIF, GPS & Technical Metadata Inspector</span>
       </div>

@@ -596,7 +596,7 @@ const loadSampleSvg = async () => {
   const blob = new Blob([sampleSvg], { type: 'image/svg+xml' })
   const file = new File([blob], 'ImageForge_Cyber_Logo_Sample.svg', { type: 'image/svg+xml' })
   await processFile(file)
-  showToast('Loaded sample vector SVG logo!', 'success')
+  showToast('Loaded sample logo!', 'success')
 }
 
 // Convert all pending/modified items in queue
@@ -740,20 +740,15 @@ onUnmounted(() => {
     <!-- Header Console -->
     <header class="converter-header">
       <div class="header-left">
-        <div class="badge-tag">
-          <span class="privacy-dot"></span>
-          100% PRIVATE • ZERO SERVER UPLOADS
-        </div>
         <h1 class="header-title">ImageForge</h1>
         <p class="header-desc">
-          Universal image and vector format conversion studio. Scale SVGs with infinite vector fidelity,
-          switch between modern formats (PNG, JPG, WebP, AVIF, BMP, ICO favicons), and batch process files client-side.
+          Universal image format conversion studio. Convert seamlessly between modern formats (PNG, JPG, WebP, AVIF, BMP, ICO favicons, SVG), with batch processing, scaling multipliers, and quality controls.
         </p>
       </div>
       <div class="header-actions">
         <button class="btn-sample" @click="loadSampleSvg">
           <span class="btn-icon">⚡</span>
-          Load Sample SVG Logo
+          Load Sample Logo
         </button>
         <button v-if="queue.length" class="btn-clear" @click="clearQueue">
           <span class="btn-icon">✕</span>
@@ -785,13 +780,13 @@ onUnmounted(() => {
           <span class="dropzone-icon">🔄</span>
         </div>
         <div class="dropzone-text">
-          <h3>Drop Images or SVGs here to Convert</h3>
+          <h3>Drop Images here to Convert</h3>
           <p>
-            Supports <strong>SVG, PNG, JPG, WebP, AVIF, BMP, ICO</strong> • Batch upload & Clipboard (<code>Ctrl+V</code>) ready
+            Supports <strong>PNG, JPG, WebP, AVIF, SVG, BMP, ICO</strong> • Batch upload & Clipboard (<code>Ctrl+V</code>) ready
           </p>
         </div>
         <div class="dropzone-formats-badge">
-          <span>SVG ➔ ANY FORMAT</span>
+          <span>UNIVERSAL CONVERTER</span>
           <span>MULTI-SIZE ICO FAVICON</span>
           <span>RETINA 2X / 4X / 8X</span>
         </div>

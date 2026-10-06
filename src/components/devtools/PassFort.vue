@@ -138,7 +138,7 @@ onMounted(() => {
     <div class="util-title-bar">
       <div class="title-left">
         <span class="util-title-icon">🔐</span>
-        <h3 class="util-title-text">PassFort</h3>
+        <h3 class="util-title-text">PassGen</h3>
       </div>
       <span class="entropy-badge">{{ entropyBits }} bits</span>
     </div>

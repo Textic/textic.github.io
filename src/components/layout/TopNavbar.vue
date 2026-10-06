@@ -50,7 +50,7 @@ const getViewMetadata = (id: ActiveViewId) => {
     case 'arcade-snake':
       return { category: 'Arcade Games', title: 'Snake', icon: '🐍', tag: 'CANVAS MACHINE' }
     case 'dev-passfort':
-      return { category: 'Utilities', title: 'PassFort Generator', icon: '🔐', tag: 'ENTROPY SECURITY' }
+      return { category: 'Utilities', title: 'PassGen (Password Generator)', icon: '🔐', tag: 'ENTROPY SECURITY' }
     case 'dev-json':
       return { category: 'Dev Utilities', title: 'JSON Clean Formatter', icon: '💎', tag: 'VALIDATOR & MINIFIER' }
     case 'dev-cipher':

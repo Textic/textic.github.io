@@ -853,6 +853,12 @@ onUnmounted(() => {
           <div class="banner-top-row">
             <h3 class="file-name" :title="selectedImage.name">{{ selectedImage.name }}</h3>
             <span class="mime-badge">{{ selectedImage.type.replace('image/', '').toUpperCase() }}</span>
+            <span v-if="aiProvenance.isAi" class="top-provenance-badge ai" :title="aiProvenance.summary">
+              🤖 {{ aiProvenance.platformName }}
+            </span>
+            <span v-else-if="aiProvenance.confidence === 'AUTHENTIC_CAMERA'" class="top-provenance-badge camera" :title="aiProvenance.summary">
+              📸 Authentic Camera
+            </span>
           </div>
 
           <div class="specs-pills">
@@ -888,64 +894,6 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <!-- AI Provenance & Hardware Authenticity Banner -->
-      <section 
-        class="provenance-banner" 
-        :class="{
-          'ai-alert': aiProvenance.isAi,
-          'camera-verified': aiProvenance.confidence === 'AUTHENTIC_CAMERA',
-          'inconclusive': aiProvenance.confidence === 'INCONCLUSIVE'
-        }"
-      >
-        <div class="provenance-content">
-          <div class="provenance-main-row">
-            <span class="provenance-badge-icon">{{ aiProvenance.platformIcon }}</span>
-            <div class="provenance-info">
-              <div class="provenance-tags-row">
-                <span class="provenance-name">{{ aiProvenance.platformName }}</span>
-                <span 
-                  class="confidence-pill" 
-                  :class="aiProvenance.confidence.toLowerCase()"
-                >
-                  {{ aiProvenance.confidence === 'AUTHENTIC_CAMERA' ? 'HARDWARE SENSOR' : aiProvenance.confidence === 'INCONCLUSIVE' ? 'STRIPPED / UNKNOWN' : `${aiProvenance.confidencePercent}% CONFIDENCE` }}
-                </span>
-                <span v-if="aiProvenance.c2paManifestFound" class="c2pa-pill">
-                  🛡️ C2PA CREDENTIALS
-                </span>
-                <span v-if="aiProvenance.digitalSourceType" class="iptc-pill">
-                  IPTC ALGORITHMIC
-                </span>
-              </div>
-              <p class="provenance-description">{{ aiProvenance.summary }}</p>
-            </div>
-          </div>
-
-          <!-- Forensic Traces Chips -->
-          <div v-if="aiProvenance.detectedTraces.length > 0" class="provenance-traces-box">
-            <span class="traces-heading">FORENSIC TRACES DETECTED:</span>
-            <div class="traces-list">
-              <span 
-                v-for="(trace, tIdx) in aiProvenance.detectedTraces" 
-                :key="tIdx" 
-                class="trace-badge"
-                :title="trace.description"
-              >
-                <span class="trace-type">{{ trace.category }}</span>
-                <span class="trace-name">{{ trace.label }}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <button 
-          v-if="aiProvenance.isAi" 
-          class="btn-view-ai-tab"
-          @click="activeTab = 'software'"
-        >
-          Inspect AI Parameters ➔
-        </button>
-      </section>
-
       <!-- Navigation Tabs -->
       <nav class="metalens-tabs">
         <button 
@@ -954,6 +902,7 @@ onUnmounted(() => {
           @click="activeTab = 'camera'"
         >
           <span>📷</span> Camera & Shot
+          <span v-if="cameraInfo.make || cameraInfo.model" class="tab-chip green">DETECTED</span>
         </button>
         <button 
           class="tab-btn" 
@@ -1739,195 +1688,26 @@ onUnmounted(() => {
   background: #e01638;
 }
 
-/* AI Provenance Banner */
-.provenance-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 20px;
-  background: #0f1420;
-  border: 1px solid #1c2638;
-  border-radius: 10px;
-  transition: all 0.25s ease;
-  flex-wrap: wrap;
-}
-
-.provenance-banner.ai-alert {
-  background: linear-gradient(135deg, rgba(255, 30, 66, 0.08) 0%, rgba(15, 20, 32, 0.95) 100%);
-  border-color: rgba(255, 30, 66, 0.45);
-  box-shadow: 0 4px 20px rgba(255, 30, 66, 0.08);
-}
-
-.provenance-banner.camera-verified {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 20, 32, 0.95) 100%);
-  border-color: rgba(16, 185, 129, 0.4);
-}
-
-.provenance-banner.inconclusive {
-  background: #0f1420;
-  border-color: #1c2638;
-}
-
-.provenance-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
-  min-width: 280px;
-}
-
-.provenance-main-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-
-.provenance-badge-icon {
-  font-size: 2rem;
-  line-height: 1;
-  flex-shrink: 0;
-  padding: 6px;
-  background: #141b2b;
-  border: 1px solid #23304a;
-  border-radius: 8px;
-}
-
-.provenance-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.provenance-tags-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.provenance-name {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #f8fafc;
-}
-
-.confidence-pill {
+/* Compact Inline Top Provenance Badge */
+.top-provenance-badge {
   font-size: 0.68rem;
-  font-weight: 800;
-  padding: 2px 7px;
+  font-weight: 700;
+  padding: 2px 8px;
   border-radius: 4px;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-.confidence-pill.high {
-  background: rgba(255, 30, 66, 0.2);
+.top-provenance-badge.ai {
+  background: rgba(255, 30, 66, 0.18);
   border: 1px solid #ff1e42;
   color: #ff4d6d;
 }
 
-.confidence-pill.authentic_camera {
+.top-provenance-badge.camera {
   background: rgba(16, 185, 129, 0.18);
   border: 1px solid #10b981;
   color: #34d399;
-}
-
-.confidence-pill.inconclusive {
-  background: #1c2638;
-  border: 1px solid #2d3b55;
-  color: #94a3b8;
-}
-
-.c2pa-pill {
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  background: rgba(0, 240, 255, 0.12);
-  border: 1px solid rgba(0, 240, 255, 0.35);
-  color: #00f0ff;
-  border-radius: 4px;
-}
-
-.iptc-pill {
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  background: rgba(168, 85, 247, 0.15);
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  color: #c084fc;
-  border-radius: 4px;
-}
-
-.provenance-description {
-  margin: 0;
-  font-size: 0.82rem;
-  color: #cbd5e1;
-  line-height: 1.4;
-}
-
-.provenance-traces-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.traces-heading {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.05em;
-}
-
-.traces-list {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.trace-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  background: #141b2b;
-  border: 1px solid #23304a;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  color: #cbd5e1;
-}
-
-.trace-type {
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: #ff1e42;
-  background: rgba(255, 30, 66, 0.12);
-  padding: 1px 4px;
-  border-radius: 2px;
-}
-
-.trace-name {
-  font-weight: 600;
-}
-
-.btn-view-ai-tab {
-  padding: 9px 14px;
-  background: rgba(255, 30, 66, 0.15);
-  border: 1px solid rgba(255, 30, 66, 0.4);
-  color: #ff4d6d;
-  font-size: 0.78rem;
-  font-weight: 700;
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-
-.btn-view-ai-tab:hover {
-  background: #ff1e42;
-  color: #ffffff;
 }
 
 /* Tabs */

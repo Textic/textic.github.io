@@ -63,6 +63,8 @@ const getViewMetadata = (id: ActiveViewId) => {
       return { category: 'Utilities', title: 'MetaLens (Image Metadata & EXIF)', icon: '📸', tag: 'PRIVACY & SPECS' }
     case 'dev-converter':
       return { category: 'Utilities', title: 'ImageForge (Universal Image & SVG Converter)', icon: '🔄', tag: 'FORMAT SHIFT' }
+    case 'dev-videoforge':
+      return { category: 'Utilities', title: 'VideoForge (Video & Audio Transcoder Studio)', icon: '🎬', tag: 'WASM FFMPEG' }
     case 'dev-mcp-playground':
       return { category: 'Others', title: 'MCP Playground', icon: '🌌', tag: '3D WEBMCP' }
     case 'dev-dotfiles':

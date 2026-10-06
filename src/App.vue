@@ -19,6 +19,7 @@ import ColorStudio from '@/components/devtools/ColorStudio.vue'
 const McpPlayground = defineAsyncComponent(() => import('@/components/playground/McpPlayground.vue'))
 const MetaLens = defineAsyncComponent(() => import('@/components/devtools/MetaLens.vue'))
 const ImageConverter = defineAsyncComponent(() => import('@/components/devtools/ImageConverter.vue'))
+const VideoConverter = defineAsyncComponent(() => import('@/components/devtools/VideoConverter.vue'))
 
 const VALID_VIEWS: ActiveViewId[] = [
   'arcade-typing',
@@ -31,6 +32,7 @@ const VALID_VIEWS: ActiveViewId[] = [
   'dev-json',
   'dev-metalens',
   'dev-converter',
+  'dev-videoforge',
   'dev-mcp-playground',
   'dev-dotfiles',
   'skills-catalog',
@@ -197,6 +199,11 @@ onUnmounted(() => {
           <!-- 11. ImageForge Universal Image & SVG Converter -->
           <div v-else-if="activeView === 'dev-converter'" key="converter" class="view-wrapper">
             <ImageConverter />
+          </div>
+
+          <!-- 12. VideoForge Universal Video & Audio Converter Studio -->
+          <div v-else-if="activeView === 'dev-videoforge'" key="videoforge" class="view-wrapper">
+            <VideoConverter />
           </div>
         </Transition>
       </main>

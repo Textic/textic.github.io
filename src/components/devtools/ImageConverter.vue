@@ -222,7 +222,9 @@ async function encodeICOFile(frames: { width: number; height: number; blob: Blob
 const loadImage = (url: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+    if (!url.startsWith('blob:') && !url.startsWith('data:')) {
+      img.crossOrigin = 'anonymous'
+    }
     img.onload = () => resolve(img)
     img.onerror = (err) => reject(new Error('Failed to load image resource: ' + err))
     img.src = url
@@ -507,12 +509,13 @@ const processFile = async (file: File): Promise<void> => {
   }
 
   queue.value.push(newItem)
+  const reactiveItem = queue.value.find(i => i.id === newItem.id) ?? newItem
   if (!selectedItemId.value) {
-    selectedItemId.value = newItem.id
+    selectedItemId.value = reactiveItem.id
   }
 
-  // Automatically start conversion
-  convertItem(newItem)
+  // Automatically start conversion on the reactive proxy
+  await convertItem(reactiveItem)
 }
 
 /**
@@ -614,9 +617,14 @@ const convertAll = async () => {
 }
 
 // Download single converted image
-const downloadItem = (item: ImageQueueItem) => {
+const downloadItem = async (item: ImageQueueItem) => {
+  if (item.status !== 'done' || !item.convertedUrl || !item.convertedBlob) {
+    showToast('Preparing image download...', 'info')
+    await convertItem(item)
+  }
+
   if (!item.convertedUrl || !item.convertedBlob) {
-    showToast('Image is not ready to download yet', 'error')
+    showToast('Failed to prepare image for download', 'error')
     return
   }
 
@@ -902,9 +910,8 @@ onUnmounted(() => {
             <!-- Item Action Buttons -->
             <div class="item-actions" @click.stop>
               <button
-                v-if="item.status === 'done'"
                 class="btn-icon-action btn-download"
-                title="Download Converted Image"
+                :title="item.status === 'done' ? 'Download Converted Image' : 'Convert & Download'"
                 @click="downloadItem(item)"
               >
                 ⬇
@@ -1136,10 +1143,11 @@ onUnmounted(() => {
                 </button>
                 <button
                   class="btn-stage-primary"
-                  :disabled="selectedItem.status !== 'done'"
+                  :disabled="selectedItem.status === 'converting'"
                   @click="downloadItem(selectedItem)"
                 >
-                  ⬇ Download {{ selectedItem.targetFormat.toUpperCase() }}
+                  <span v-if="selectedItem.status === 'converting'">⏳ Converting...</span>
+                  <span v-else>⬇ Download {{ selectedItem.targetFormat.toUpperCase() }}</span>
                 </button>
               </div>
             </div>

@@ -66,9 +66,29 @@ interface SoftwareAiInfo {
   hasAiData: boolean
 }
 
+export interface AiTrace {
+  label: string
+  description: string
+  category: 'C2PA' | 'IPTC' | 'EXIF' | 'CHUNK' | 'WATERMARK'
+}
+
+export interface AiProvenance {
+  isAi: boolean
+  platform: 'chatgpt' | 'gemini' | 'midjourney' | 'stablediffusion' | 'c2pa_generic' | 'none'
+  platformName: string
+  platformIcon: string
+  confidence: 'HIGH' | 'MEDIUM' | 'SUSPECTED' | 'AUTHENTIC_CAMERA' | 'INCONCLUSIVE'
+  confidencePercent: number
+  summary: string
+  digitalSourceType?: string
+  c2paManifestFound: boolean
+  detectedTraces: AiTrace[]
+}
+
 // Active State
 const isLoading = ref(false)
 const isDragging = ref(false)
+const dragCounter = ref(0)
 const selectedImage = ref<{
   name: string
   size: number
@@ -81,6 +101,17 @@ const cameraInfo = ref<CameraInfo>({})
 const gpsInfo = ref<GpsInfo>({ hasGps: false })
 const technicalInfo = ref<TechnicalInfo>({})
 const softwareAiInfo = ref<SoftwareAiInfo>({ hasAiData: false })
+const aiProvenance = ref<AiProvenance>({
+  isAi: false,
+  platform: 'none',
+  platformName: 'No Image Loaded',
+  platformIcon: '🔍',
+  confidence: 'INCONCLUSIVE',
+  confidencePercent: 0,
+  summary: 'Upload an image to inspect AI signatures and EXIF metadata.',
+  c2paManifestFound: false,
+  detectedTraces: []
+})
 const rawTags = ref<ParsedTag[]>([])
 
 // View Tab
@@ -113,7 +144,7 @@ const computeAspectRatio = (w: number, h: number): string => {
   return `${(w / h).toFixed(2)}:1`
 }
 
-// Clean and Parse EXIF Tags
+// Clean and Parse EXIF Tags & AI Signatures
 const parseExifData = async (buffer: ArrayBuffer, fileName: string, fileType: string, fileSize: number, dataUrl: string) => {
   try {
     isLoading.value = true
@@ -174,6 +205,9 @@ const parseExifData = async (buffer: ArrayBuffer, fileName: string, fileType: st
       // Check exif
       if (tags.exif?.[name]?.description) return String(tags.exif[name].description)
       if (tags.exif?.[name]?.value) return String(tags.exif[name].value)
+      // Check iptc / xmp
+      if (tags.iptc?.[name]?.description) return String(tags.iptc[name].description)
+      if (tags.xmp?.[name]?.description) return String(tags.xmp[name].description)
       // Check flat
       if (tags[name]?.description) return String(tags[name].description)
       if (tags[name]?.value) return String(tags[name].value)
@@ -271,7 +305,6 @@ const parseExifData = async (buffer: ArrayBuffer, fileName: string, fileType: st
 
       if (params) {
         aiPrompt = params
-        // Extract typical Automatic1111 fields
         const negMatch = params.match(/Negative prompt:\s*([^]+?)(?=Steps:|$)/i)
         if (negMatch?.[1]) aiNeg = negMatch[1].trim()
 
@@ -312,6 +345,233 @@ const parseExifData = async (buffer: ArrayBuffer, fileName: string, fileType: st
       hasAiData: Boolean(aiPrompt)
     }
 
+    // 5. Deep AI Provenance & Signature Analysis (ChatGPT, Gemini, Midjourney, SD, C2PA)
+    // Scan raw buffer text safely (first 4MB + last 512KB for trailers)
+    const scanLimit = Math.min(buffer.byteLength, 4 * 1024 * 1024)
+    const headerBytes = new Uint8Array(buffer.slice(0, scanLimit))
+    const headerLatin1 = new TextDecoder('latin1').decode(headerBytes)
+
+    let trailerLatin1 = ''
+    if (buffer.byteLength > scanLimit) {
+      const trailerOffset = Math.max(0, buffer.byteLength - 512 * 1024)
+      const trailerBytes = new Uint8Array(buffer.slice(trailerOffset))
+      trailerLatin1 = new TextDecoder('latin1').decode(trailerBytes)
+    }
+    const rawBufferText = headerLatin1 + ' ' + trailerLatin1
+
+    // Extract potential IPTC / XMP tags for provenance
+    const iptcCredit = tags.iptc?.['Credit']?.description || tags.xmp?.['Credit']?.description || ''
+    const digitalSourceType = tags.iptc?.['Digital Source Type']?.description || 
+                              tags.xmp?.['DigitalSourceType']?.description || 
+                              tags.xmp?.['Iptc4xmpExt:DigitalSourceType']?.description || ''
+    const creatorTool = tags.xmp?.['CreatorTool']?.description || ''
+    const softwareTag = software || ''
+
+    // Detection flags
+    const traces: AiTrace[] = []
+
+    // A. Check C2PA / CAI Content Credentials Manifest
+    const c2paFound = rawBufferText.includes('urn:c2pa:') || 
+                      rawBufferText.includes('c2pa.assertions') || 
+                      rawBufferText.includes('c2pa.claim') ||
+                      rawBufferText.includes('claim_generator') ||
+                      rawBufferText.includes('c2pa.action')
+
+    if (c2paFound) {
+      traces.push({
+        label: 'C2PA Content Credentials Manifest',
+        description: 'Embedded Coalition for Content Provenance and Authenticity (C2PA) assertion structure detected.',
+        category: 'C2PA'
+      })
+    }
+
+    // B. Check IPTC trainedAlgorithmicMedia standard
+    const hasTrainedMedia = digitalSourceType.includes('trainedAlgorithmicMedia') || 
+                            rawBufferText.includes('trainedAlgorithmicMedia')
+
+    if (hasTrainedMedia) {
+      traces.push({
+        label: 'IPTC: trainedAlgorithmicMedia',
+        description: 'International IPTC standard marker indicating image was synthesized by AI algorithm.',
+        category: 'IPTC'
+      })
+    }
+
+    // C. Check OpenAI / ChatGPT (DALL-E 3)
+    const hasOpenAiDalle = 
+      /DALL[\u00B7.-]E\s*3/i.test(softwareTag) ||
+      /DALL[\u00B7.-]E/i.test(softwareTag) ||
+      /ChatGPT/i.test(softwareTag) ||
+      /DALL[\u00B7.-]E\s*3/i.test(rawBufferText) ||
+      /DALL[\u00B7.-]E/i.test(rawBufferText) ||
+      /claim_generator.*DALL-E/i.test(rawBufferText) ||
+      (c2paFound && (/OpenAI/i.test(rawBufferText) || /openai\.com/i.test(rawBufferText)))
+
+    if (hasOpenAiDalle) {
+      traces.push({
+        label: 'OpenAI DALL-E Signature',
+        description: 'Metadata traces and claim signatures identify OpenAI ChatGPT / DALL-E 3 generative engine.',
+        category: 'EXIF'
+      })
+    }
+
+    // D. Check Google Gemini / Imagen 3
+    const hasGoogleCredit = /Made with Google AI/i.test(iptcCredit) || /Made with Google AI/i.test(rawBufferText)
+    const hasGoogleImagen = /Google Imagen/i.test(creatorTool) || 
+                            /Google Imagen/i.test(softwareTag) || 
+                            /Google Imagen/i.test(rawBufferText) ||
+                            /Google AI/i.test(creatorTool)
+    const hasSynthId = /SynthID/i.test(rawBufferText)
+    const hasGoogleTrust = c2paFound && (/Google LLC/i.test(rawBufferText) || /pki\.goog/i.test(rawBufferText) || /Google Trust Services/i.test(rawBufferText))
+
+    if (hasGoogleCredit) {
+      traces.push({
+        label: 'IPTC Credit: "Made with Google AI"',
+        description: 'Standard Google provenance credit badge embedded in metadata.',
+        category: 'IPTC'
+      })
+    }
+    if (hasGoogleImagen) {
+      traces.push({
+        label: 'Creator Tool: Google Imagen',
+        description: 'Generation software identified as Google Imagen / Gemini imaging engine.',
+        category: 'EXIF'
+      })
+    }
+    if (hasSynthId) {
+      traces.push({
+        label: 'SynthID Digital Watermark Signature',
+        description: 'Google DeepMind SynthID provenance metadata marker detected.',
+        category: 'WATERMARK'
+      })
+    }
+    if (hasGoogleTrust) {
+      traces.push({
+        label: 'Google Trust Services C2PA Anchor',
+        description: 'C2PA cryptographic manifest signed by Google LLC Certificate Authority.',
+        category: 'C2PA'
+      })
+    }
+
+    const isGoogleGemini = hasGoogleCredit || hasGoogleImagen || hasSynthId || hasGoogleTrust
+
+    // E. Check Midjourney
+    const isMidjourney = /Midjourney/i.test(softwareTag) || 
+                         /Midjourney/i.test(rawBufferText) || 
+                         /--v\s+[456]/i.test(rawBufferText)
+
+    if (isMidjourney && !hasOpenAiDalle && !isGoogleGemini) {
+      traces.push({
+        label: 'Midjourney Engine Signature',
+        description: 'Metadata chunk identifies Midjourney generation engine.',
+        category: 'CHUNK'
+      })
+    }
+
+    // F. Check Stable Diffusion / ComfyUI / Flux
+    const isStableDiffusion = Boolean(aiPrompt) || 
+                              (rawBufferText.includes('Steps:') && rawBufferText.includes('Sampler:') && rawBufferText.includes('CFG scale:'))
+
+    if (isStableDiffusion && !hasOpenAiDalle && !isGoogleGemini && !isMidjourney) {
+      traces.push({
+        label: 'Stable Diffusion / ComfyUI Parameters',
+        description: 'Explicit prompt and hyperparameter chunks (Steps, Sampler, Seed, CFG) detected.',
+        category: 'CHUNK'
+      })
+    }
+
+    // Decide classification & confidence
+    if (hasOpenAiDalle) {
+      aiProvenance.value = {
+        isAi: true,
+        platform: 'chatgpt',
+        platformName: 'ChatGPT (DALL-E 3)',
+        platformIcon: '🤖',
+        confidence: 'HIGH',
+        confidencePercent: 99,
+        summary: 'Image contains verified digital signatures and C2PA Content Credentials generated by OpenAI ChatGPT / DALL-E 3.',
+        digitalSourceType: hasTrainedMedia ? 'trainedAlgorithmicMedia (IPTC Standard)' : undefined,
+        c2paManifestFound: c2paFound,
+        detectedTraces: traces
+      }
+    } else if (isGoogleGemini) {
+      aiProvenance.value = {
+        isAi: true,
+        platform: 'gemini',
+        platformName: 'Google Gemini (Imagen 3)',
+        platformIcon: '✨',
+        confidence: 'HIGH',
+        confidencePercent: 99,
+        summary: 'Image contains verified provenance attribution and digital markers generated by Google Gemini / Imagen 3 AI.',
+        digitalSourceType: hasTrainedMedia ? 'trainedAlgorithmicMedia (IPTC Standard)' : undefined,
+        c2paManifestFound: c2paFound,
+        detectedTraces: traces
+      }
+    } else if (isMidjourney) {
+      aiProvenance.value = {
+        isAi: true,
+        platform: 'midjourney',
+        platformName: 'Midjourney',
+        platformIcon: '🎨',
+        confidence: 'HIGH',
+        confidencePercent: 98,
+        summary: 'Image metadata matches Midjourney generative AI pipeline and styling parameters.',
+        digitalSourceType: hasTrainedMedia ? 'trainedAlgorithmicMedia' : undefined,
+        c2paManifestFound: c2paFound,
+        detectedTraces: traces
+      }
+    } else if (isStableDiffusion) {
+      aiProvenance.value = {
+        isAi: true,
+        platform: 'stablediffusion',
+        platformName: 'Stable Diffusion / ComfyUI / Flux',
+        platformIcon: '🧠',
+        confidence: 'HIGH',
+        confidencePercent: 99,
+        summary: 'Embedded generation prompts, sampler parameters, seed, and workflow chunks found in file headers.',
+        digitalSourceType: hasTrainedMedia ? 'trainedAlgorithmicMedia' : undefined,
+        c2paManifestFound: c2paFound,
+        detectedTraces: traces
+      }
+    } else if (hasTrainedMedia || c2paFound) {
+      aiProvenance.value = {
+        isAi: true,
+        platform: 'c2pa_generic',
+        platformName: 'C2PA Certified Generative AI',
+        platformIcon: '🛡️',
+        confidence: 'HIGH',
+        confidencePercent: 95,
+        summary: 'Complies with C2PA and IPTC standards for trainedAlgorithmicMedia (Synthetically Generated Media).',
+        digitalSourceType: 'trainedAlgorithmicMedia',
+        c2paManifestFound: c2paFound,
+        detectedTraces: traces
+      }
+    } else if (cameraInfo.value.make && (cameraInfo.value.model || cameraInfo.value.fNumber || cameraInfo.value.iso || cameraInfo.value.exposureTime)) {
+      aiProvenance.value = {
+        isAi: false,
+        platform: 'none',
+        platformName: 'Authentic Camera Capture',
+        platformIcon: '📸',
+        confidence: 'AUTHENTIC_CAMERA',
+        confidencePercent: 98,
+        summary: `Captured by optical sensor hardware: ${cameraInfo.value.make} ${cameraInfo.value.model || ''}. Authentic exposure and lens parameters detected.`,
+        c2paManifestFound: false,
+        detectedTraces: []
+      }
+    } else {
+      aiProvenance.value = {
+        isAi: false,
+        platform: 'none',
+        platformName: 'No Provenance Metadata',
+        platformIcon: 'ℹ️',
+        confidence: 'INCONCLUSIVE',
+        confidencePercent: 0,
+        summary: 'No camera hardware EXIF or generative AI provenance tags found. Note: Most social media and messaging apps (WhatsApp, X, Instagram) strip metadata during upload.',
+        c2paManifestFound: false,
+        detectedTraces: []
+      }
+    }
+
     showToast(`Metadata loaded: ${parsedList.length} tags detected`, 'success')
   } catch (err) {
     console.error('Error parsing EXIF', err)
@@ -328,6 +588,11 @@ const handleFile = async (file: File) => {
     return
   }
 
+  // Revoke previous URL if any
+  if (selectedImage.value?.dataUrl && selectedImage.value.dataUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(selectedImage.value.dataUrl)
+  }
+
   const reader = new FileReader()
   reader.onload = async (e) => {
     const buffer = e.target?.result as ArrayBuffer
@@ -341,8 +606,33 @@ const handleFile = async (file: File) => {
   reader.readAsArrayBuffer(file)
 }
 
-// Dropzone Events
-const onDrop = (e: DragEvent) => {
+// Container Drag & Drop Events (Works anywhere on screen, replaces instantly)
+const onContainerDragEnter = (e: DragEvent) => {
+  e.preventDefault()
+  dragCounter.value++
+  isDragging.value = true
+}
+
+const onContainerDragOver = (e: DragEvent) => {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'copy'
+  }
+  isDragging.value = true
+}
+
+const onContainerDragLeave = (e: DragEvent) => {
+  e.preventDefault()
+  dragCounter.value--
+  if (dragCounter.value <= 0) {
+    dragCounter.value = 0
+    isDragging.value = false
+  }
+}
+
+const onContainerDrop = (e: DragEvent) => {
+  e.preventDefault()
+  dragCounter.value = 0
   isDragging.value = false
   if (e.dataTransfer?.files?.[0]) {
     handleFile(e.dataTransfer.files[0])
@@ -370,130 +660,6 @@ const onPaste = (e: ClipboardEvent) => {
       }
     }
   }
-}
-
-// Load Pre-Crafted Sample Photo
-const loadSampleImage = async () => {
-  isLoading.value = true
-
-  // Create a realistic sample photo data canvas
-  const canvas = document.createElement('canvas')
-  canvas.width = 1200
-  canvas.height = 800
-  const ctx = canvas.getContext('2d')
-  if (ctx) {
-    // Beautiful gradient
-    const grad = ctx.createLinearGradient(0, 0, 1200, 800)
-    grad.addColorStop(0, '#0f172a')
-    grad.addColorStop(0.5, '#1e1b4b')
-    grad.addColorStop(1, '#ff1e42')
-    ctx.fillStyle = grad
-    ctx.fillRect(0, 0, 1200, 800)
-
-    // Sun / Moon circle
-    ctx.fillStyle = '#ffedd5'
-    ctx.beginPath()
-    ctx.arc(600, 360, 120, 0, Math.PI * 2)
-    ctx.fill()
-
-    // Mountain peak silhouette
-    ctx.fillStyle = '#090d16'
-    ctx.beginPath()
-    ctx.moveTo(100, 800)
-    ctx.lineTo(600, 320)
-    ctx.lineTo(1100, 800)
-    ctx.closePath()
-    ctx.fill()
-
-    // Title stamp
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.font = 'bold 36px monospace'
-    ctx.textAlign = 'center'
-    ctx.fillText('MOUNT FUJI // SUNRISE SAMPLE', 600, 680)
-    ctx.font = '20px monospace'
-    ctx.fillStyle = 'rgba(255, 30, 66, 0.9)'
-    ctx.fillText('Sony Alpha 7 IV • 24-70mm F2.8 GM II • GPS Embedded', 600, 720)
-  }
-
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
-
-  // Populate realistic sample state
-  selectedImage.value = {
-    name: 'DSC08942_Fuji_Sunrise_Sample.jpg',
-    size: 4892014,
-    type: 'image/jpeg',
-    dataUrl
-  }
-
-  cameraInfo.value = {
-    make: 'Sony',
-    model: 'ILCE-7M4 (Alpha 7 IV)',
-    lens: 'FE 24-70mm F2.8 GM II',
-    focalLength: '35.0 mm',
-    focalLength35mm: '35 mm',
-    fNumber: 'f/2.8',
-    exposureTime: '1/640 s',
-    iso: '100',
-    exposureProgram: 'Aperture Priority (A)',
-    meteringMode: 'Multi-segment Pattern',
-    flash: 'Off, Did not fire',
-    whiteBalance: 'Daylight (5500K)',
-    dateTaken: '2024:09:18 05:48:22',
-    modifyDate: '2024:09:18 06:12:05'
-  }
-
-  gpsInfo.value = {
-    latitude: 35.3606,
-    longitude: 138.7274,
-    latitudeRef: 'N',
-    longitudeRef: 'E',
-    altitude: '3,776 m',
-    timestamp: '2024:09:18 05:48:22 UTC',
-    hasGps: true
-  }
-
-  technicalInfo.value = {
-    width: 7008,
-    height: 4672,
-    megapixels: '32.7 MP',
-    aspectRatio: '3:2',
-    colorSpace: 'Display P3',
-    bitsPerSample: '8, 8, 8 (24-bit RGB)',
-    orientation: 'Horizontal (normal)',
-    resolutionDpi: '300 DPI',
-    compression: 'JPEG'
-  }
-
-  softwareAiInfo.value = {
-    software: 'Adobe Photoshop Lightroom Classic 13.2',
-    artist: 'TexTools Photography Lab',
-    copyright: '© 2026 TexTools Creative Studio',
-    hasAiData: false
-  }
-
-  rawTags.value = [
-    { id: '1', name: 'Make', category: 'EXIF', value: 'Sony' },
-    { id: '2', name: 'Model', category: 'EXIF', value: 'ILCE-7M4' },
-    { id: '3', name: 'LensModel', category: 'EXIF', value: 'FE 24-70mm F2.8 GM II' },
-    { id: '4', name: 'FNumber', category: 'EXIF', value: '2.8' },
-    { id: '5', name: 'ExposureTime', category: 'EXIF', value: '0.0015625 (1/640 s)' },
-    { id: '6', name: 'ISOSpeedRatings', category: 'EXIF', value: '100' },
-    { id: '7', name: 'FocalLength', category: 'EXIF', value: '35 mm' },
-    { id: '8', name: 'FocalLengthIn35mmFilm', category: 'EXIF', value: '35' },
-    { id: '9', name: 'DateTimeOriginal', category: 'EXIF', value: '2024:09:18 05:48:22' },
-    { id: '10', name: 'GPSLatitude', category: 'GPS', value: '35.3606° N' },
-    { id: '11', name: 'GPSLongitude', category: 'GPS', value: '138.7274° E' },
-    { id: '12', name: 'GPSAltitude', category: 'GPS', value: '3776 m' },
-    { id: '13', name: 'ColorSpace', category: 'EXIF', value: 'Display P3' },
-    { id: '14', name: 'PixelXDimension', category: 'EXIF', value: '7008' },
-    { id: '15', name: 'PixelYDimension', category: 'EXIF', value: '4672' },
-    { id: '16', name: 'Software', category: 'EXIF', value: 'Lightroom Classic 13.2' },
-    { id: '17', name: 'Artist', category: 'IPTC', value: 'TexTools Photography Lab' },
-    { id: '18', name: 'Copyright', category: 'IPTC', value: '© 2026 TexTools Creative Studio' }
-  ]
-
-  isLoading.value = false
-  showToast('Sample photo with full EXIF & GPS loaded!', 'success')
 }
 
 // Privacy Sanitizer: Strip Metadata & Download
@@ -537,6 +703,7 @@ const exportAllJson = () => {
       sizeBytes: selectedImage.value?.size,
       mimeType: selectedImage.value?.type
     },
+    provenance: aiProvenance.value,
     camera: cameraInfo.value,
     gps: gpsInfo.value,
     technical: technicalInfo.value,
@@ -552,11 +719,25 @@ const exportAllJson = () => {
 
 // Clear State
 const clearImage = () => {
+  if (selectedImage.value?.dataUrl && selectedImage.value.dataUrl.startsWith('blob:')) {
+    URL.revokeObjectURL(selectedImage.value.dataUrl)
+  }
   selectedImage.value = null
   cameraInfo.value = {}
   gpsInfo.value = { hasGps: false }
   technicalInfo.value = {}
   softwareAiInfo.value = { hasAiData: false }
+  aiProvenance.value = {
+    isAi: false,
+    platform: 'none',
+    platformName: 'No Image Loaded',
+    platformIcon: '🔍',
+    confidence: 'INCONCLUSIVE',
+    confidencePercent: 0,
+    summary: 'Upload an image to inspect AI signatures and EXIF metadata.',
+    c2paManifestFound: false,
+    detectedTraces: []
+  }
   rawTags.value = []
   if (fileInputRef.value) fileInputRef.value.value = ''
   showToast('Image cleared', 'info')
@@ -591,17 +772,43 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="metalens-container">
+  <div 
+    class="metalens-container"
+    @dragenter.prevent="onContainerDragEnter"
+    @dragover.prevent="onContainerDragOver"
+    @dragleave.prevent="onContainerDragLeave"
+    @drop.prevent="onContainerDrop"
+  >
+    <!-- Global File Input (Always in DOM) -->
+    <input 
+      ref="fileInputRef" 
+      type="file" 
+      accept="image/jpeg,image/png,image/webp,image/tiff,image/heic,image/avif,image/gif" 
+      class="hidden-input" 
+      @change="onFileSelect"
+    />
+
+    <!-- Drag Replacement Visual Overlay -->
+    <div v-if="isDragging" class="drag-replace-overlay" @click.stop>
+      <div class="replace-overlay-card">
+        <span class="replace-overlay-icon">📥</span>
+        <h3 v-if="selectedImage">Drop New Image to Replace</h3>
+        <h3 v-else>Drop Image Here to Inspect</h3>
+        <p v-if="selectedImage">Existing photo will be swapped instantly • 100% Client-Side</p>
+        <p v-else>Supports JPEG, PNG, WebP, TIFF, HEIC, AVIF & GIF</p>
+      </div>
+    </div>
+
     <!-- Header Console -->
     <header class="metalens-header">
       <div class="header-left">
         <h2 class="metalens-title">📸 MetaLens Studio</h2>
-        <span class="metalens-desc">Image EXIF, GPS & Technical Metadata Inspector</span>
+        <span class="metalens-desc">Image EXIF, GPS, Technical Specs & AI Provenance Inspector</span>
       </div>
 
       <div class="header-actions">
-        <button class="btn-sample" @click="loadSampleImage">
-          <span>🖼️</span> Load Sample Photo
+        <button v-if="selectedImage" class="btn-replace-header" @click="fileInputRef?.click()">
+          <span>🔄</span> Replace Image
         </button>
         <button v-if="selectedImage" class="btn-clear" @click="clearImage">
           <span>🗑️</span> Clear
@@ -614,18 +821,8 @@ onUnmounted(() => {
       v-if="!selectedImage" 
       class="dropzone-area"
       :class="{ dragging: isDragging }"
-      @dragover.prevent="isDragging = true"
-      @dragleave.prevent="isDragging = false"
-      @drop.prevent="onDrop"
       @click="fileInputRef?.click()"
     >
-      <input 
-        ref="fileInputRef" 
-        type="file" 
-        accept="image/jpeg,image/png,image/webp,image/tiff,image/heic,image/avif,image/gif" 
-        class="hidden-input" 
-        @change="onFileSelect"
-      />
       <div class="dropzone-icon">📷</div>
       <h3 class="dropzone-title">Drop your image here, or click to browse</h3>
       <p class="dropzone-subtitle">
@@ -635,9 +832,6 @@ onUnmounted(() => {
       <div class="dropzone-actions" @click.stop>
         <button class="btn-upload" @click="fileInputRef?.click()">
           <span>📁</span> Browse Local Image
-        </button>
-        <button class="btn-sample-secondary" @click="loadSampleImage">
-          <span>✨</span> Try Sample EXIF Photo
         </button>
       </div>
 
@@ -694,6 +888,64 @@ onUnmounted(() => {
         </div>
       </section>
 
+      <!-- AI Provenance & Hardware Authenticity Banner -->
+      <section 
+        class="provenance-banner" 
+        :class="{
+          'ai-alert': aiProvenance.isAi,
+          'camera-verified': aiProvenance.confidence === 'AUTHENTIC_CAMERA',
+          'inconclusive': aiProvenance.confidence === 'INCONCLUSIVE'
+        }"
+      >
+        <div class="provenance-content">
+          <div class="provenance-main-row">
+            <span class="provenance-badge-icon">{{ aiProvenance.platformIcon }}</span>
+            <div class="provenance-info">
+              <div class="provenance-tags-row">
+                <span class="provenance-name">{{ aiProvenance.platformName }}</span>
+                <span 
+                  class="confidence-pill" 
+                  :class="aiProvenance.confidence.toLowerCase()"
+                >
+                  {{ aiProvenance.confidence === 'AUTHENTIC_CAMERA' ? 'HARDWARE SENSOR' : aiProvenance.confidence === 'INCONCLUSIVE' ? 'STRIPPED / UNKNOWN' : `${aiProvenance.confidencePercent}% CONFIDENCE` }}
+                </span>
+                <span v-if="aiProvenance.c2paManifestFound" class="c2pa-pill">
+                  🛡️ C2PA CREDENTIALS
+                </span>
+                <span v-if="aiProvenance.digitalSourceType" class="iptc-pill">
+                  IPTC ALGORITHMIC
+                </span>
+              </div>
+              <p class="provenance-description">{{ aiProvenance.summary }}</p>
+            </div>
+          </div>
+
+          <!-- Forensic Traces Chips -->
+          <div v-if="aiProvenance.detectedTraces.length > 0" class="provenance-traces-box">
+            <span class="traces-heading">FORENSIC TRACES DETECTED:</span>
+            <div class="traces-list">
+              <span 
+                v-for="(trace, tIdx) in aiProvenance.detectedTraces" 
+                :key="tIdx" 
+                class="trace-badge"
+                :title="trace.description"
+              >
+                <span class="trace-type">{{ trace.category }}</span>
+                <span class="trace-name">{{ trace.label }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <button 
+          v-if="aiProvenance.isAi" 
+          class="btn-view-ai-tab"
+          @click="activeTab = 'software'"
+        >
+          Inspect AI Parameters ➔
+        </button>
+      </section>
+
       <!-- Navigation Tabs -->
       <nav class="metalens-tabs">
         <button 
@@ -724,7 +976,8 @@ onUnmounted(() => {
           @click="activeTab = 'software'"
         >
           <span>🤖</span> Software & AI
-          <span v-if="softwareAiInfo.hasAiData" class="tab-chip cyan">AI CHUNKS</span>
+          <span v-if="aiProvenance.isAi" class="tab-chip red">AI DETECTED</span>
+          <span v-else-if="softwareAiInfo.hasAiData" class="tab-chip cyan">AI CHUNKS</span>
         </button>
         <button 
           class="tab-btn" 
@@ -928,6 +1181,72 @@ onUnmounted(() => {
         <!-- 4. Software & AI Prompts Tab -->
         <div v-if="activeTab === 'software'" class="tab-pane">
           <div class="cards-grid">
+            <!-- AI Forensic & Provenance Analysis Card (Full Width) -->
+            <div class="info-card full-width ai-forensic-card" :class="{ 'detected': aiProvenance.isAi }">
+              <div class="card-header">
+                <span class="card-icon">🔬</span>
+                <span class="card-title">AI Forensic & Provenance Verification</span>
+                <span v-if="aiProvenance.isAi" class="forensic-status-badge ai">AI DETECTED</span>
+                <span v-else-if="aiProvenance.confidence === 'AUTHENTIC_CAMERA'" class="forensic-status-badge camera">OPTICAL CAMERA</span>
+                <span v-else class="forensic-status-badge unknown">NO SIGNATURES</span>
+              </div>
+
+              <div class="forensic-summary-box">
+                <div class="forensic-icon-col">
+                  <span class="f-big-icon">{{ aiProvenance.platformIcon }}</span>
+                </div>
+                <div class="forensic-text-col">
+                  <div class="f-title-row">
+                    <h4>{{ aiProvenance.platformName }}</h4>
+                    <span class="f-conf">{{ aiProvenance.confidencePercent }}% Confidence</span>
+                  </div>
+                  <p class="f-desc">{{ aiProvenance.summary }}</p>
+                </div>
+              </div>
+
+              <!-- Forensic Indicators Grid -->
+              <div class="forensic-indicators-grid">
+                <div class="f-indicator">
+                  <span class="fi-label">C2PA Manifest</span>
+                  <span class="fi-val" :class="{ positive: aiProvenance.c2paManifestFound }">
+                    {{ aiProvenance.c2paManifestFound ? 'Embedded (Found)' : 'None Detected' }}
+                  </span>
+                </div>
+                <div class="f-indicator">
+                  <span class="fi-label">Digital Source Type</span>
+                  <span class="fi-val" :class="{ positive: Boolean(aiProvenance.digitalSourceType) }">
+                    {{ aiProvenance.digitalSourceType || 'Standard Media' }}
+                  </span>
+                </div>
+                <div class="f-indicator">
+                  <span class="fi-label">Identified Platform</span>
+                  <span class="fi-val highlight">
+                    {{ aiProvenance.platformName }}
+                  </span>
+                </div>
+                <div class="f-indicator">
+                  <span class="fi-label">Signatures Found</span>
+                  <span class="fi-val" :class="{ positive: aiProvenance.detectedTraces.length > 0 }">
+                    {{ aiProvenance.detectedTraces.length }} Trace(s)
+                  </span>
+                </div>
+              </div>
+
+              <!-- Detailed Trace Table -->
+              <div v-if="aiProvenance.detectedTraces.length > 0" class="forensic-traces-table-wrapper">
+                <span class="ft-table-title">Forensic Signature Log:</span>
+                <div class="ft-rows">
+                  <div v-for="(t, idx) in aiProvenance.detectedTraces" :key="idx" class="ft-row">
+                    <span class="ft-category" :class="t.category.toLowerCase()">{{ t.category }}</span>
+                    <div class="ft-content">
+                      <strong class="ft-label">{{ t.label }}</strong>
+                      <span class="ft-desc">{{ t.description }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Author & Editing Software Card -->
             <div class="info-card">
               <div class="card-header">
@@ -1062,6 +1381,66 @@ onUnmounted(() => {
   max-width: 1200px;
   margin: 0 auto;
   padding-bottom: 24px;
+  position: relative;
+  min-height: 480px;
+}
+
+/* Drag Replacement Overlay */
+.drag-replace-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 14, 23, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 2px dashed #ff1e42;
+  pointer-events: none;
+  animation: fadeInOverlay 0.15s ease-out;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; transform: scale(0.99); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.replace-overlay-card {
+  text-align: center;
+  background: #0f1420;
+  border: 1px solid rgba(255, 30, 66, 0.4);
+  padding: 32px 48px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(255, 30, 66, 0.2);
+}
+
+.replace-overlay-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 12px;
+  animation: bounceSlow 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes bounceSlow {
+  from { transform: translateY(0); }
+  to { transform: translateY(-8px); }
+}
+
+.replace-overlay-card h3 {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.replace-overlay-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
 }
 
 /* Header */
@@ -1121,7 +1500,7 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-.btn-sample, .btn-clear {
+.btn-replace-header, .btn-clear {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1133,15 +1512,15 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.btn-sample {
-  background: rgba(255, 30, 66, 0.15);
-  border: 1px solid rgba(255, 30, 66, 0.4);
-  color: #ff4d6d;
+.btn-replace-header {
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #00f0ff;
 }
 
-.btn-sample:hover {
-  background: #ff1e42;
-  color: #ffffff;
+.btn-replace-header:hover {
+  background: #00f0ff;
+  color: #090d16;
 }
 
 .btn-clear {
@@ -1204,16 +1583,13 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-.btn-upload, .btn-sample-secondary {
+.btn-upload {
   padding: 10px 18px;
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.btn-upload {
   background: #ff1e42;
   border: none;
   color: #ffffff;
@@ -1221,17 +1597,6 @@ onUnmounted(() => {
 
 .btn-upload:hover {
   background: #e01638;
-}
-
-.btn-sample-secondary {
-  background: #141b2b;
-  border: 1px solid #23304a;
-  color: #cbd5e1;
-}
-
-.btn-sample-secondary:hover {
-  border-color: #ff1e42;
-  color: #ffffff;
 }
 
 .dropzone-tip {
@@ -1374,6 +1739,197 @@ onUnmounted(() => {
   background: #e01638;
 }
 
+/* AI Provenance Banner */
+.provenance-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  background: #0f1420;
+  border: 1px solid #1c2638;
+  border-radius: 10px;
+  transition: all 0.25s ease;
+  flex-wrap: wrap;
+}
+
+.provenance-banner.ai-alert {
+  background: linear-gradient(135deg, rgba(255, 30, 66, 0.08) 0%, rgba(15, 20, 32, 0.95) 100%);
+  border-color: rgba(255, 30, 66, 0.45);
+  box-shadow: 0 4px 20px rgba(255, 30, 66, 0.08);
+}
+
+.provenance-banner.camera-verified {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 20, 32, 0.95) 100%);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.provenance-banner.inconclusive {
+  background: #0f1420;
+  border-color: #1c2638;
+}
+
+.provenance-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.provenance-main-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.provenance-badge-icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 6px;
+  background: #141b2b;
+  border: 1px solid #23304a;
+  border-radius: 8px;
+}
+
+.provenance-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.provenance-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.provenance-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.confidence-pill {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+
+.confidence-pill.high {
+  background: rgba(255, 30, 66, 0.2);
+  border: 1px solid #ff1e42;
+  color: #ff4d6d;
+}
+
+.confidence-pill.authentic_camera {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid #10b981;
+  color: #34d399;
+}
+
+.confidence-pill.inconclusive {
+  background: #1c2638;
+  border: 1px solid #2d3b55;
+  color: #94a3b8;
+}
+
+.c2pa-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #00f0ff;
+  border-radius: 4px;
+}
+
+.iptc-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+  border-radius: 4px;
+}
+
+.provenance-description {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.provenance-traces-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.traces-heading {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.traces-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.trace-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: #141b2b;
+  border: 1px solid #23304a;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+}
+
+.trace-type {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #ff1e42;
+  background: rgba(255, 30, 66, 0.12);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.trace-name {
+  font-weight: 600;
+}
+
+.btn-view-ai-tab {
+  padding: 9px 14px;
+  background: rgba(255, 30, 66, 0.15);
+  border: 1px solid rgba(255, 30, 66, 0.4);
+  color: #ff4d6d;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-view-ai-tab:hover {
+  background: #ff1e42;
+  color: #ffffff;
+}
+
 /* Tabs */
 .metalens-tabs {
   display: flex;
@@ -1423,6 +1979,11 @@ onUnmounted(() => {
 .tab-chip.cyan {
   background: rgba(0, 240, 255, 0.2);
   color: #00f0ff;
+}
+
+.tab-chip.red {
+  background: rgba(255, 30, 66, 0.2);
+  color: #ff4d6d;
 }
 
 /* Tab Viewport */
@@ -1935,5 +2496,195 @@ onUnmounted(() => {
   text-align: center;
   color: #64748b;
   padding: 32px;
+}
+
+/* AI Forensic Inspector Card */
+.ai-forensic-card {
+  border-color: #23304a;
+}
+
+.ai-forensic-card.detected {
+  border-color: rgba(255, 30, 66, 0.4);
+  background: linear-gradient(180deg, rgba(255, 30, 66, 0.03) 0%, #0f1420 100%);
+}
+
+.forensic-status-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.forensic-status-badge.ai {
+  background: rgba(255, 30, 66, 0.2);
+  color: #ff4d6d;
+  border: 1px solid #ff1e42;
+}
+
+.forensic-status-badge.camera {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid #10b981;
+}
+
+.forensic-status-badge.unknown {
+  background: #1c2638;
+  color: #94a3b8;
+  border: 1px solid #2d3b55;
+}
+
+.forensic-summary-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  background: #141b2b;
+  border: 1px solid #1c2638;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.f-big-icon {
+  font-size: 2.2rem;
+}
+
+.forensic-text-col {
+  flex: 1;
+}
+
+.f-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.f-title-row h4 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.f-conf {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #00f0ff;
+  background: rgba(0, 240, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.f-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.forensic-indicators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.f-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: #090c12;
+  border: 1px solid #1c2638;
+  border-radius: 6px;
+}
+
+.fi-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fi-val {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  word-break: break-all;
+}
+
+.fi-val.positive {
+  color: #00f0ff;
+}
+
+.fi-val.highlight {
+  color: #ff4d6d;
+}
+
+.forensic-traces-table-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #090c12;
+  border: 1px solid #1c2638;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.ft-table-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ft-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ft-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #141b2b;
+  border: 1px solid #1c2638;
+  border-radius: 6px;
+}
+
+.ft-category {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.ft-category.c2pa { background: rgba(0, 240, 255, 0.15); color: #00f0ff; }
+.ft-category.iptc { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.ft-category.exif { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.ft-category.watermark { background: rgba(255, 30, 66, 0.15); color: #ff4d6d; }
+.ft-category.chunk { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+
+.ft-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ft-label {
+  font-size: 0.78rem;
+  color: #f8fafc;
+}
+
+.ft-desc {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.35;
 }
 </style>

@@ -18,6 +18,7 @@ import ColorStudio from '@/components/devtools/ColorStudio.vue'
 
 const McpPlayground = defineAsyncComponent(() => import('@/components/playground/McpPlayground.vue'))
 const MetaLens = defineAsyncComponent(() => import('@/components/devtools/MetaLens.vue'))
+const ImageConverter = defineAsyncComponent(() => import('@/components/devtools/ImageConverter.vue'))
 
 const VALID_VIEWS: ActiveViewId[] = [
   'arcade-typing',
@@ -29,6 +30,7 @@ const VALID_VIEWS: ActiveViewId[] = [
   'dev-passfort',
   'dev-json',
   'dev-metalens',
+  'dev-converter',
   'dev-mcp-playground',
   'dev-dotfiles',
   'skills-catalog',
@@ -190,6 +192,11 @@ onUnmounted(() => {
           <!-- 10. MetaLens Image EXIF & Metadata Studio -->
           <div v-else-if="activeView === 'dev-metalens'" key="metalens" class="view-wrapper">
             <MetaLens />
+          </div>
+
+          <!-- 11. ImageForge Universal Image & SVG Converter -->
+          <div v-else-if="activeView === 'dev-converter'" key="converter" class="view-wrapper">
+            <ImageConverter />
           </div>
         </Transition>
       </main>

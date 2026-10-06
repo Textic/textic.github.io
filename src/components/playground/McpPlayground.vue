@@ -366,7 +366,7 @@ const buildScene = async () => {
 
   // 3. WebGPU Next-Gen Renderer (with automatic WebGL2 fallback)
   try {
-    const gpuRenderer = new WebGPURenderer({ antialias: true, powerPreference: 'high-performance' })
+    const gpuRenderer = new WebGPURenderer({ antialias: true })
     await gpuRenderer.init()
     renderer = gpuRenderer
     const isWebGPU = Boolean(gpuRenderer.backend && 'isWebGPUBackend' in gpuRenderer.backend && gpuRenderer.backend.isWebGPUBackend)
@@ -374,7 +374,7 @@ const buildScene = async () => {
     gpuEngineName.value = isWebGPU ? 'WebGPU' : 'WebGL2'
   } catch (err) {
     console.warn('WebGPURenderer init failed, falling back to WebGLRenderer:', err)
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+    renderer = new THREE.WebGLRenderer({ antialias: true })
     isWebGpuActive.value = false
     gpuEngineName.value = 'WebGL2'
   }
@@ -382,7 +382,7 @@ const buildScene = async () => {
   renderer.setSize(width, height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.shadowMap.type = THREE.PCFShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.3
 

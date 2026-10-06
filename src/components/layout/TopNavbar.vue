@@ -50,7 +50,7 @@ const getViewMetadata = (id: ActiveViewId) => {
     case 'arcade-snake':
       return { category: 'Arcade Games', title: 'Snake', icon: '🐍', tag: 'CANVAS MACHINE' }
     case 'dev-passfort':
-      return { category: 'Dev Utilities', title: 'PassFort Generator', icon: '🔐', tag: 'ENTROPY SECURITY' }
+      return { category: 'Utilities', title: 'PassFort Generator', icon: '🔐', tag: 'ENTROPY SECURITY' }
     case 'dev-json':
       return { category: 'Dev Utilities', title: 'JSON Clean Formatter', icon: '💎', tag: 'VALIDATOR & MINIFIER' }
     case 'dev-cipher':
@@ -60,13 +60,13 @@ const getViewMetadata = (id: ActiveViewId) => {
     case 'dev-colors':
       return { category: 'Dev Utilities', title: 'Color & CSS Studio', icon: '🎨', tag: 'COLOR MATRIX' }
     case 'dev-metalens':
-      return { category: 'Dev Utilities', title: 'MetaLens (Image Metadata & EXIF)', icon: '📸', tag: 'PRIVACY & SPECS' }
+      return { category: 'Utilities', title: 'MetaLens (Image Metadata & EXIF)', icon: '📸', tag: 'PRIVACY & SPECS' }
     case 'dev-mcp-playground':
       return { category: 'Others', title: 'MCP Playground', icon: '🌌', tag: '3D WEBMCP' }
     case 'dev-dotfiles':
       return { category: 'Others', title: 'Dotfiles & OS Setup', icon: '💻', tag: 'BOOTSTRAPPER' }
     case 'skills-catalog':
-      return { category: 'Dev Utilities', title: 'Agent Skills Hub', icon: '⚡', tag: 'AI CLI SKILLS' }
+      return { category: 'Utilities', title: 'Agent Skills Hub', icon: '⚡', tag: 'AI CLI SKILLS' }
     case 'links-tools':
       return { category: 'Resources', title: 'Useful Developer Tools', icon: '🔗', tag: 'DIRECTORY' }
     case 'cdn-endpoints':

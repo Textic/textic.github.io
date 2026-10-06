@@ -55,6 +55,17 @@ const categories = ref<NavCategory[]>([
     ]
   },
   {
+    id: 'utilities',
+    title: 'Utilities',
+    icon: '🧰',
+    isOpen: true,
+    items: [
+      { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' },
+      { id: 'dev-metalens', label: 'MetaLens', icon: '📸', badge: 'EXIF' },
+      { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' }
+    ]
+  },
+  {
     id: 'devtools',
     title: 'Dev Utilities',
     icon: '🛠️',
@@ -63,10 +74,7 @@ const categories = ref<NavCategory[]>([
       { id: 'dev-cipher', label: 'CipherLab', icon: '⚡', badge: 'CRYPTO' },
       { id: 'dev-time', label: 'Time Studio', icon: '⏱️', badge: 'EPOCH' },
       { id: 'dev-colors', label: 'Color & CSS Studio', icon: '🎨', badge: 'PALETTE' },
-      { id: 'dev-passfort', label: 'PassFort Generator', icon: '🔐', badge: 'ENTROPY' },
-      { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' },
-      { id: 'dev-metalens', label: 'MetaLens', icon: '📸', badge: 'EXIF' },
-      { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' }
+      { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' }
     ]
   },
   {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import * as THREE from 'three'
+import { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 // --- WebMCP Tool Definitions (JSON Schema Specification) ---
@@ -123,7 +124,10 @@ let wsClient: WebSocket | null = null
 
 // Three.js References
 const canvasContainer = ref<HTMLDivElement | null>(null)
-let renderer: THREE.WebGLRenderer | null = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let renderer: any = null
+const isWebGpuActive = ref(false)
+const gpuEngineName = ref('WebGPU')
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let controls: OrbitControls | null = null
@@ -189,7 +193,7 @@ const initScreenCanvas = () => {
     '[SYSTEM] TexTools OS 2.4.0 Bootloader',
     '[OK] Memory Matrix 64GB Allocated',
     '[OK] WebMCP Daemon listening on channel 0',
-    '[OK] Three.js Engine WebGL2 initialized',
+    '[OK] Three.js Engine WebGPU initialized',
     '[SYS] Workstation online. Ready for agent prompt.'
   ]
 
@@ -345,7 +349,7 @@ const updateArcadeCanvas = () => {
 }
 
 // --- Three.js Procedural Room Builder ---
-const buildScene = () => {
+const buildScene = async () => {
   if (!canvasContainer.value) return
 
   const width = canvasContainer.value.clientWidth
@@ -360,8 +364,21 @@ const buildScene = () => {
   camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
   camera.position.copy(targetCamPos)
 
-  // 3. Renderer with ACESFilmic Tone Mapping and Exposure
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+  // 3. WebGPU Next-Gen Renderer (with automatic WebGL2 fallback)
+  try {
+    const gpuRenderer = new WebGPURenderer({ antialias: true, powerPreference: 'high-performance' })
+    await gpuRenderer.init()
+    renderer = gpuRenderer
+    const isWebGPU = Boolean(gpuRenderer.backend && 'isWebGPUBackend' in gpuRenderer.backend && gpuRenderer.backend.isWebGPUBackend)
+    isWebGpuActive.value = isWebGPU
+    gpuEngineName.value = isWebGPU ? 'WebGPU' : 'WebGL2'
+  } catch (err) {
+    console.warn('WebGPURenderer init failed, falling back to WebGLRenderer:', err)
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+    isWebGpuActive.value = false
+    gpuEngineName.value = 'WebGL2'
+  }
+
   renderer.setSize(width, height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.shadowMap.enabled = true
@@ -1215,10 +1232,10 @@ const toggleWsConnection = () => {
   }
 }
 
-onMounted(() => {
-  buildScene()
-  terminalLines.push('[OK] 3D Battlestation Scene Mounted')
-  pushRpcLog('result', 'system/init', { status: 'ready', tools_available: MCP_TOOLS.length })
+onMounted(async () => {
+  await buildScene()
+  terminalLines.push(`[OK] 3D Battlestation Scene Mounted (${gpuEngineName.value})`)
+  pushRpcLog('result', 'system/init', { status: 'ready', engine: gpuEngineName.value, tools_available: MCP_TOOLS.length })
 })
 
 onUnmounted(() => {
@@ -1238,6 +1255,9 @@ onUnmounted(() => {
           <span class="pulse-dot"></span>
           WEBMCP 3D LAB
         </div>
+        <span class="gpu-badge" :class="{ webgpu: isWebGpuActive }">
+          ⚡ {{ gpuEngineName.toUpperCase() }}
+        </span>
         <h2 class="playground-title">MCP Playground</h2>
         <span class="theme-chip" :style="{ borderColor: roomState.lightColor, color: roomState.lightColor }">
           {{ roomState.currentTheme.toUpperCase() }} MODE
@@ -1271,7 +1291,7 @@ onUnmounted(() => {
 
     <!-- Main Viewport Layout -->
     <div class="playground-body">
-      <!-- 3D WebGL Canvas Layer -->
+      <!-- 3D WebGPU Canvas Layer -->
       <div ref="canvasContainer" class="canvas-viewport">
         <!-- Floating Camera Presets HUD -->
         <div class="camera-hud">
@@ -1578,6 +1598,26 @@ wss.on('connection', (ws) => {
   font-weight: 700;
   color: #ff1e42;
   letter-spacing: 0.05em;
+}
+
+.gpu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #00f0ff;
+}
+
+.gpu-badge.webgpu {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
 }
 
 .pulse-dot {

@@ -66,7 +66,7 @@ const getViewMetadata = (id: ActiveViewId) => {
     case 'dev-videoforge':
       return { category: 'Utilities', title: 'VideoForge (Video & Audio Transcoder Studio)', icon: '🎬', tag: 'WASM FFMPEG' }
     case 'dev-mcp-playground':
-      return { category: 'Others', title: 'MCP Playground', icon: '🌌', tag: '3D WEBMCP' }
+      return { category: 'Others', title: 'MCP Playground', icon: '🌌', tag: 'WEBGPU 3D LAB' }
     case 'dev-dotfiles':
       return { category: 'Others', title: 'Dotfiles & OS Setup', icon: '💻', tag: 'BOOTSTRAPPER' }
     case 'skills-catalog':

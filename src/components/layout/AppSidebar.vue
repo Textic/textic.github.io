@@ -87,7 +87,7 @@ const categories = ref<NavCategory[]>([
     icon: '📁',
     isOpen: true,
     items: [
-      { id: 'dev-mcp-playground', label: 'MCP Playground', icon: '🌌', badge: '3D LAB' },
+      { id: 'dev-mcp-playground', label: 'MCP Playground', icon: '🌌', badge: 'WEBGPU' },
       { id: 'dev-dotfiles', label: 'Dotfiles', icon: '💻', badge: 'SETUP' }
     ]
   },

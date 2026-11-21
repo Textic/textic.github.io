@@ -534,7 +534,7 @@ const handleFiles = async (files: FileList | File[]) => {
   }
 
   if (!validFiles.length) {
-    showToast('Please select valid image or SVG files', 'error')
+    showToast('Invalid file. Please select a valid image', 'error')
     return
   }
 

@@ -220,7 +220,7 @@ const addFiles = (files: FileList | File[]) => {
   })
 
   if (count > 0) {
-    showToast(`${count} video${count > 1 ? 's' : ''} added to VideoForge`, 'success')
+    showToast(`${count} video${count > 1 ? 's' : ''} added to Video Studio`, 'success')
   } else {
     showToast('Please select valid video files (MP4, MOV, WebM, MKV, AVI, etc.)', 'error')
   }
@@ -544,7 +544,7 @@ onUnmounted(() => {
     <!-- Header Console -->
     <header class="videoforge-header">
       <div class="header-left">
-        <h2 class="videoforge-title">🎬 VideoForge Studio</h2>
+        <h2 class="videoforge-title">🎬 Video Studio</h2>
         <span class="videoforge-desc">
           Universal Video Transcoder, Audio Extractor & High-Fidelity GIF Studio
         </span>

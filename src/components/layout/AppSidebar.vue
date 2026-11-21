@@ -62,8 +62,8 @@ const categories = ref<NavCategory[]>([
     icon: '🧰',
     isOpen: true,
     items: [
-      { id: 'dev-converter', label: 'ImageForge', icon: '🔄', badge: 'CONVERT' },
-      { id: 'dev-videoforge', label: 'VideoForge', icon: '🎬', badge: 'VIDEO' },
+      { id: 'dev-converter', label: 'Image Studio', icon: '🔄', badge: 'CONVERT' },
+      { id: 'dev-videoforge', label: 'Video Studio', icon: '🎬', badge: 'VIDEO' },
       { id: 'dev-metalens', label: 'MetaLens', icon: '📸', badge: 'EXIF' },
       { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' },
       { id: 'dev-passfort', label: 'PassGen', icon: '🔐', badge: 'ENTROPY' }

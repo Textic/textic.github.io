@@ -592,12 +592,12 @@ const loadSampleSvg = async () => {
   <path d="M400 240 L480 380 L360 410 L440 560 L320 420 L440 390 Z" fill="url(#cyberGlow)" />
 
   <!-- Modern Typography -->
-  <text x="400" y="610" font-family="Outfit, system-ui, sans-serif" font-weight="900" font-size="38" fill="#ffffff" text-anchor="middle" letter-spacing="8">IMAGEFORGE</text>
+  <text x="400" y="610" font-family="Outfit, system-ui, sans-serif" font-weight="900" font-size="34" fill="#ffffff" text-anchor="middle" letter-spacing="6">IMAGE STUDIO</text>
   <text x="400" y="645" font-family="Fira Code, monospace" font-size="16" fill="#00f0ff" text-anchor="middle" letter-spacing="4">VECTOR // MATRIX</text>
 </svg>`
 
   const blob = new Blob([sampleSvg], { type: 'image/svg+xml' })
-  const file = new File([blob], 'ImageForge_Cyber_Logo_Sample.svg', { type: 'image/svg+xml' })
+  const file = new File([blob], 'Image_Studio_Cyber_Logo_Sample.svg', { type: 'image/svg+xml' })
   await processFile(file)
   showToast('Loaded sample logo!', 'success')
 }
@@ -748,7 +748,7 @@ onUnmounted(() => {
     <!-- Header Console -->
     <header class="converter-header">
       <div class="header-left">
-        <h1 class="header-title">ImageForge</h1>
+        <h1 class="header-title">Image Studio</h1>
         <p class="header-desc">
           Universal image format conversion studio. Convert seamlessly between modern formats (PNG, JPG, WebP, AVIF, BMP, ICO favicons, SVG), with batch processing, scaling multipliers, and quality controls.
         </p>

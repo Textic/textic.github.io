@@ -196,12 +196,12 @@ onUnmounted(() => {
             <MetaLens />
           </div>
 
-          <!-- 11. ImageForge Universal Image & SVG Converter -->
+          <!-- 11. Image Studio Universal Image & SVG Converter -->
           <div v-else-if="activeView === 'dev-converter'" key="converter" class="view-wrapper">
             <ImageConverter />
           </div>
 
-          <!-- 12. VideoForge Universal Video & Audio Converter Studio -->
+          <!-- 12. Video Studio Universal Video & Audio Converter -->
           <div v-else-if="activeView === 'dev-videoforge'" key="videoforge" class="view-wrapper">
             <VideoConverter />
           </div>

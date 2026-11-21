@@ -30,20 +30,6 @@ const tools: ToolLink[] = [
     description: 'An online tool to learn, build, test, and debug Regular Expressions with real-time match highlighting and reference cheat sheets.'
   },
   {
-    title: 'Ray.so',
-    icon: '📸',
-    tag: 'Code Snippets',
-    url: 'https://ray.so/',
-    description: 'Create beautiful, shareable screenshots of your code snippets with customizable gradient backgrounds and dark themes.'
-  },
-  {
-    title: 'Can I Use',
-    icon: '🌐',
-    tag: 'Web Standards',
-    url: 'https://caniuse.com/',
-    description: 'Up-to-date browser support tables for modern frontend web technologies, HTML5 features, and CSS properties across desktop and mobile.'
-  },
-  {
     title: 'Transform Tools',
     icon: '⚡',
     tag: 'Code Converters',

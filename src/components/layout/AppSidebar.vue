@@ -65,7 +65,7 @@ const categories = ref<NavCategory[]>([
       { id: 'dev-converter', label: 'Image Studio', icon: '🔄', badge: 'CONVERT' },
       { id: 'dev-videoforge', label: 'Video Studio', icon: '🎬', badge: 'VIDEO' },
       { id: 'dev-metalens', label: 'MetaLens', icon: '📸', badge: 'EXIF' },
-      { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' },
+      { id: 'dev-cipher', label: 'CipherLab', icon: '⚡', badge: 'CRYPTO' },
       { id: 'dev-passfort', label: 'PassGen', icon: '🔐', badge: 'ENTROPY' }
     ]
   },
@@ -75,7 +75,7 @@ const categories = ref<NavCategory[]>([
     icon: '🛠️',
     isOpen: true,
     items: [
-      { id: 'dev-cipher', label: 'CipherLab', icon: '⚡', badge: 'CRYPTO' },
+      { id: 'skills-catalog', label: 'Skills', icon: '⚡', badge: 'CLI' },
       { id: 'dev-time', label: 'Time Studio', icon: '⏱️', badge: 'EPOCH' },
       { id: 'dev-colors', label: 'Color & CSS Studio', icon: '🎨', badge: 'PALETTE' },
       { id: 'dev-json', label: 'JSON Clean', icon: '💎', badge: 'FORMAT' }

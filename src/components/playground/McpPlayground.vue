@@ -1,92 +1,26 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import * as THREE from 'three'
 import { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-
-// --- WebMCP Tool Definitions (JSON Schema Specification) ---
-interface McpTool {
-  name: string
-  description: string
-  parameters: {
-    type: 'object'
-    properties: Record<string, { type: string; description: string; enum?: string[] }>
-    required: string[]
-  }
-}
-
-const MCP_TOOLS: McpTool[] = [
-  {
-    name: 'set_ambient_lighting',
-    description: 'Adjust the room ambient lighting color, intensity, and mood theme.',
-    parameters: {
-      type: 'object',
-      properties: {
-        theme: {
-          type: 'string',
-          description: 'Lighting theme preset',
-          enum: ['crimson', 'cyber', 'matrix', 'night', 'day']
-        },
-        color: { type: 'string', description: 'Hex color string (e.g. #ff1e42)' },
-        intensity: { type: 'number', description: 'Light intensity multiplier from 0.0 to 3.0' }
-      },
-      required: ['theme']
-    }
-  },
-  {
-    name: 'power_device',
-    description: 'Turn on or off devices inside the room (PC, Arcade Cabinet, or Room Lights).',
-    parameters: {
-      type: 'object',
-      properties: {
-        target: { type: 'string', description: 'Device to toggle', enum: ['pc', 'arcade', 'room'] },
-        state: { type: 'boolean', description: 'True for on, false for off' }
-      },
-      required: ['target', 'state']
-    }
-  },
-  {
-    name: 'set_screen_mode',
-    description: 'Change the display output of the curved battlestation monitor.',
-    parameters: {
-      type: 'object',
-      properties: {
-        mode: {
-          type: 'string',
-          description: 'Display mode',
-          enum: ['matrix', 'terminal', 'textools', 'off']
-        }
-      },
-      required: ['mode']
-    }
-  },
-  {
-    name: 'set_camera_view',
-    description: 'Move the camera to a specific preset angle with smooth animation.',
-    parameters: {
-      type: 'object',
-      properties: {
-        preset: {
-          type: 'string',
-          description: 'Target camera angle',
-          enum: ['isometric', 'desk', 'arcade']
-        }
-      },
-      required: ['preset']
-    }
-  },
-  {
-    name: 'overclock_system',
-    description: 'Overclock the PC workstation, speeding up cooling fans and pulsing crimson RGB.',
-    parameters: {
-      type: 'object',
-      properties: {
-        enabled: { type: 'boolean', description: 'Enable or disable extreme overclock' }
-      },
-      required: ['enabled']
-    }
-  }
-]
+import {
+  MCP_TOOLS,
+  THEME_CONFIGS,
+  SCENE_PRESETS,
+  interpretNaturalLanguagePrompt,
+  type RoomState,
+  type ThemeName,
+  type ScreenMode,
+  type SideScreenMode,
+  type CameraPreset,
+  type HologramMode,
+  type WeatherMode,
+  type ArcadeGameMode,
+  type DeviceTarget,
+  type ScenePresetName
+} from './mcpTools'
+import { createDynamicTextures, type DynamicTextures } from './sceneTextures'
+import { buildPlaygroundScene, type SceneRefs, type InteractiveHit } from './sceneBuilders'
 
 // --- State ---
 interface JsonRpcLog {
@@ -103,21 +37,36 @@ const rpcLogs = ref<JsonRpcLog[]>([])
 const isInspectorOpen = ref(true)
 const isBridgeModalOpen = ref(false)
 const activeTab = ref<'hud' | 'tools' | 'logs'>('hud')
+const hoveredLabel = ref<string | null>(null)
+const currentFps = ref(60)
 
-// Scene State Reactive
-const roomState = reactive({
+// Scene Reactive State
+const roomState = reactive<RoomState>({
   lightsOn: true,
   currentTheme: 'crimson',
   lightColor: '#ff1e42',
+  lightIntensity: 1.8,
+  rgbCycle: false,
   pcOn: true,
   arcadeOn: true,
-  screenMode: 'matrix' as 'matrix' | 'terminal' | 'textools' | 'off',
-  cameraPreset: 'isometric' as 'isometric' | 'desk' | 'arcade',
+  arcadeMode: 'invaders',
+  serverRackOn: true,
+  deskLampOn: true,
+  speakersOn: true,
+  screenMode: 'matrix',
+  sideScreenMode: 'code',
+  cameraPreset: 'isometric',
+  autoOrbit: false,
   isOverclocked: false,
-  fanSpeedMultiplier: 1.0
+  fanSpeedMultiplier: 1.0,
+  deskHeight: 0.0,
+  keyboardRgb: true,
+  hologramMode: 'orbit',
+  weatherMode: 'cyber_rain',
+  chairSpin: false
 })
 
-// Optional WebSocket Bridge (Option B)
+// Optional WebSocket Bridge
 const wsStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
 const wsUrl = ref('ws://localhost:8765')
 let wsClient: WebSocket | null = null
@@ -132,37 +81,41 @@ let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let controls: OrbitControls | null = null
 let animFrameId: number | null = null
+let resizeObserver: ResizeObserver | null = null
+let textures: DynamicTextures | null = null
+let refs: SceneRefs | null = null
 
-// Scene Object References
-let ambientLight: THREE.AmbientLight
-let hemiLight: THREE.HemisphereLight
-let dirLight: THREE.DirectionalLight
-let roomCeilingLight: THREE.PointLight
-let deskLedLight: THREE.PointLight
-let monitorBackglowLight: THREE.PointLight
-let pcRgbLight: THREE.PointLight
-let arcadePointLight: THREE.PointLight
-let deskLedMesh: THREE.Mesh
-let wallTrimMeshes: THREE.Mesh[] = []
-let fanMeshes: THREE.Mesh[] = []
+const terminalLines: string[] = [
+  '[SYSTEM] TexTools OS 3.0.0 WebGPU Kernel',
+  '[OK] Memory Matrix 64GB DDR5 Allocated',
+  '[OK] WebMCP Daemon listening on channel 0',
+  '[OK] Homelab 12U Rack & Holo-Core Synced',
+  '[SYS] Workstation online. Ready for agent prompt.'
+]
 
-// Dynamic Monitor Screen Canvas Texture
-let screenCanvas: HTMLCanvasElement
-let screenCtx: CanvasRenderingContext2D | null
-let screenTexture: THREE.CanvasTexture | null
-let matrixDrops: number[] = []
-let terminalLines: string[] = []
+// Camera Transition State (never fights user drag!)
+const targetCamPos = new THREE.Vector3(8.6, 7.0, 8.8)
+const targetCamLook = new THREE.Vector3(-0.4, 1.8, -1.0)
+let isCameraTransitioning = false
 
-// Dynamic Arcade Screen Canvas Texture
-let arcadeCanvas: HTMLCanvasElement
-let arcadeCtx: CanvasRenderingContext2D | null
-let arcadeTexture: THREE.CanvasTexture | null
-let arcadeInvaderX = 50
-let arcadeInvaderDir = 1
+// Raycaster & Pointer Click Tracking
+const raycaster = new THREE.Raycaster()
+const pointerNdc = new THREE.Vector2()
+let pointerDownPos = { x: 0, y: 0 }
 
-// Camera Animation State
-const targetCamPos = new THREE.Vector3(8.5, 7.5, 8.5)
-const targetCamLook = new THREE.Vector3(0, 1.4, 0)
+const deskHeightCm = computed(() => Math.round(74 + roomState.deskHeight * 44))
+
+const activeDevicesCount = computed(() => {
+  let count = 0
+  if (roomState.lightsOn) count++
+  if (roomState.pcOn) count++
+  if (roomState.arcadeOn) count++
+  if (roomState.serverRackOn) count++
+  if (roomState.deskLampOn) count++
+  if (roomState.hologramMode !== 'off') count++
+  if (roomState.speakersOn) count++
+  return count
+})
 
 // Helper: Push JSON-RPC Log
 const pushRpcLog = (direction: 'call' | 'result' | 'error', method: string, data: unknown) => {
@@ -175,201 +128,434 @@ const pushRpcLog = (direction: 'call' | 'result' | 'error', method: string, data
     method,
     data
   })
-  if (rpcLogs.value.length > 30) rpcLogs.value.pop()
+  if (rpcLogs.value.length > 40) rpcLogs.value.pop()
 }
 
-// --- Dynamic Canvas Textures (Monitor Screen) ---
-const initScreenCanvas = () => {
-  screenCanvas = document.createElement('canvas')
-  screenCanvas.width = 512
-  screenCanvas.height = 256
-  screenCtx = screenCanvas.getContext('2d')
+// Helper: Apply a hex color across room accent lights & emissive trims
+const applyAccentHex = (hex: number, intensity: number) => {
+  if (!refs) return
+  const active = roomState.lightsOn
+  refs.deskLedLight.color.setHex(hex)
+  refs.deskLedLight.intensity = active ? intensity * 1.15 : 0.15
+  refs.monitorBackglowLight.color.setHex(hex)
+  refs.monitorBackglowLight.intensity = active ? intensity * 1.45 : 0.2
 
-  // Matrix characters
-  const cols = Math.floor(screenCanvas.width / 16)
-  matrixDrops = Array.from({ length: cols }, () => Math.floor(Math.random() * -30))
-
-  terminalLines = [
-    '[SYSTEM] TexTools OS 2.4.0 Bootloader',
-    '[OK] Memory Matrix 64GB Allocated',
-    '[OK] WebMCP Daemon listening on channel 0',
-    '[OK] Three.js Engine WebGPU initialized',
-    '[SYS] Workstation online. Ready for agent prompt.'
-  ]
-
-  screenTexture = new THREE.CanvasTexture(screenCanvas)
-  screenTexture.generateMipmaps = false
-  screenTexture.minFilter = THREE.LinearFilter
+  refs.deskLedMeshes.forEach((m) => {
+    ;(m.material as THREE.MeshBasicMaterial).color.setHex(hex)
+  })
+  refs.wallTrimMeshes.forEach((m) => {
+    ;(m.material as THREE.MeshBasicMaterial).color.setHex(hex)
+  })
+  refs.pcRgbMeshes.forEach((m) => {
+    const mat = m.material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial
+    if ('emissive' in mat && mat.emissive) {
+      mat.emissive.setHex(hex)
+    }
+    mat.color.setHex(hex)
+  })
+  if (roomState.keyboardRgb) {
+    refs.keyboardRgbMeshes.forEach((m) => {
+      ;(m.material as THREE.MeshBasicMaterial).color.setHex(hex)
+    })
+  }
 }
 
-const updateScreenCanvas = () => {
-  if (!screenCtx) return
+const syncLightingFromState = () => {
+  if (!refs || !scene) return
+  const cfg = THEME_CONFIGS[roomState.currentTheme]
+  const hex = parseInt(roomState.lightColor.replace('#', ''), 16) || cfg.hex
+  const inten = roomState.lightIntensity
+  const on = roomState.lightsOn
 
-  if (!roomState.pcOn || roomState.screenMode === 'off') {
-    screenCtx.fillStyle = '#05070a'
-    screenCtx.fillRect(0, 0, screenCanvas.width, screenCanvas.height)
-    if (screenTexture) screenTexture.needsUpdate = true
-    return
+  scene.background = new THREE.Color(cfg.bgHex)
+  if (scene.fog instanceof THREE.Fog) {
+    scene.fog.color.setHex(cfg.bgHex)
   }
 
-  if (roomState.screenMode === 'matrix') {
-    screenCtx.fillStyle = 'rgba(5, 10, 8, 0.2)'
-    screenCtx.fillRect(0, 0, screenCanvas.width, screenCanvas.height)
+  refs.dirLight.intensity = on ? cfg.dirIntensity * Math.max(0.5, inten * 0.6) : 0.38
+  refs.hemiLight.intensity = on ? cfg.hemiIntensity : 0.32
+  refs.ambientLight.intensity = on ? 0.44 : 0.14
 
-    screenCtx.fillStyle = roomState.isOverclocked ? '#ff1e42' : '#00ff88'
-    screenCtx.font = '14px monospace'
+  refs.roomCeilingLight.color.setHex(cfg.ceilingHex)
+  refs.roomCeilingLight.intensity = on ? inten * 1.35 : 0.1
+  ;(refs.ceilingLightMesh.material as THREE.MeshBasicMaterial).color.setHex(on ? cfg.ceilingHex : 0x1e293b)
 
-    const chars = '01ABCDEFGHJKLMNOPQRSTUVWXYZ$#@%&*+-/='
-    for (let i = 0; i < matrixDrops.length; i++) {
-      const char = chars[Math.floor(Math.random() * chars.length)] || '0'
-      const dropY = matrixDrops[i] ?? 0
-      screenCtx.fillText(char, i * 16, dropY * 16)
+  applyAccentHex(hex, inten)
+}
 
-      if (dropY * 16 > screenCanvas.height && Math.random() > 0.975) {
-        matrixDrops[i] = 0
-      } else {
-        matrixDrops[i] = dropY + 1
+// --- WebMCP Tool Execution Engine ---
+const executeMcpTool = (name: string, args: Record<string, unknown>) => {
+  pushRpcLog('call', name, {
+    jsonrpc: '2.0',
+    id: Date.now(),
+    method: 'tools/call',
+    params: { name, arguments: args }
+  })
+
+  let resultMessage = ''
+
+  switch (name) {
+    case 'set_ambient_lighting': {
+      const themeRaw = (args.theme as ThemeName) || 'crimson'
+      const theme: ThemeName = themeRaw in THEME_CONFIGS ? themeRaw : 'crimson'
+      const cfg = THEME_CONFIGS[theme]
+
+      if (typeof args.intensity === 'number') {
+        roomState.lightIntensity = Math.min(3.0, Math.max(0.0, args.intensity))
       }
+      if (typeof args.rgbCycle === 'boolean') {
+        roomState.rgbCycle = args.rgbCycle
+      }
+
+      roomState.currentTheme = theme
+      roomState.lightsOn = roomState.lightIntensity > 0.1
+
+      if (args.color && typeof args.color === 'string') {
+        const cleanHex = args.color.trim()
+        if (/^#[0-9a-fA-F]{6}$/.test(cleanHex)) {
+          roomState.lightColor = cleanHex
+        } else {
+          roomState.lightColor = cfg.css
+        }
+      } else {
+        roomState.lightColor = cfg.css
+      }
+
+      syncLightingFromState()
+      resultMessage = `Lighting set: theme=${theme}, intensity=${roomState.lightIntensity.toFixed(2)}, rgbCycle=${roomState.rgbCycle}`
+      break
     }
-  } else if (roomState.screenMode === 'terminal') {
-    screenCtx.fillStyle = '#080c14'
-    screenCtx.fillRect(0, 0, screenCanvas.width, screenCanvas.height)
 
-    screenCtx.fillStyle = '#00f0ff'
-    screenCtx.font = 'bold 13px monospace'
-    screenCtx.fillText('// WEBMCP AGENT TERMINAL', 15, 25)
+    case 'power_device': {
+      const target = args.target as DeviceTarget
+      const state = Boolean(args.state)
 
-    screenCtx.strokeStyle = '#1e283d'
-    screenCtx.beginPath()
-    screenCtx.moveTo(15, 34)
-    screenCtx.lineTo(497, 34)
-    screenCtx.stroke()
+      if (target === 'pc') {
+        roomState.pcOn = state
+        if (!state) {
+          roomState.screenMode = 'off'
+          roomState.sideScreenMode = 'off'
+        } else {
+          if (roomState.screenMode === 'off') roomState.screenMode = 'matrix'
+          if (roomState.sideScreenMode === 'off') roomState.sideScreenMode = 'code'
+        }
+        if (refs) refs.pcRgbLight.intensity = state ? 1.8 : 0
+      } else if (target === 'arcade') {
+        roomState.arcadeOn = state
+        if (state && roomState.arcadeMode === 'off') roomState.arcadeMode = 'invaders'
+        if (refs) refs.arcadePointLight.intensity = state ? 2.2 : 0
+      } else if (target === 'room') {
+        roomState.lightsOn = state
+        syncLightingFromState()
+      } else if (target === 'server_rack') {
+        roomState.serverRackOn = state
+        if (refs) refs.serverLight.intensity = state ? 1.2 : 0
+      } else if (target === 'desk_lamp') {
+        roomState.deskLampOn = state
+        if (refs) {
+          refs.deskLampLight.intensity = state ? 1.6 : 0
+          refs.deskLampBulbMat.color.setHex(state ? 0xfff4d6 : 0x1e293b)
+        }
+      } else if (target === 'holo_core') {
+        roomState.hologramMode = state ? 'orbit' : 'off'
+      } else if (target === 'speakers') {
+        roomState.speakersOn = state
+      }
 
-    screenCtx.font = '12px monospace'
-    screenCtx.fillStyle = '#e2e8f0'
-    let y = 60
-    for (const line of terminalLines.slice(-9)) {
-      screenCtx.fillText(line, 20, y)
-      y += 20
+      resultMessage = `Device '${target}' power -> ${state ? 'ON' : 'OFF'}`
+      break
     }
 
-    // Blinking cursor
-    if (Math.floor(Date.now() / 400) % 2 === 0) {
-      screenCtx.fillStyle = '#ff1e42'
-      screenCtx.fillRect(20, y - 10, 8, 14)
+    case 'set_screen_mode': {
+      const mode = (args.mode as ScreenMode) || 'matrix'
+      roomState.screenMode = mode
+      if (args.sideMode) {
+        roomState.sideScreenMode = args.sideMode as SideScreenMode
+      }
+      if (mode !== 'off' || roomState.sideScreenMode !== 'off') {
+        roomState.pcOn = true
+        if (refs) refs.pcRgbLight.intensity = 1.8
+      }
+      resultMessage = `Displays -> primary=${roomState.screenMode}, side=${roomState.sideScreenMode}`
+      break
     }
-  } else if (roomState.screenMode === 'textools') {
-    screenCtx.fillStyle = '#0a0d14'
-    screenCtx.fillRect(0, 0, screenCanvas.width, screenCanvas.height)
 
-    // Border glow
-    screenCtx.strokeStyle = '#ff1e42'
-    screenCtx.lineWidth = 4
-    screenCtx.strokeRect(6, 6, screenCanvas.width - 12, screenCanvas.height - 12)
+    case 'set_camera_view': {
+      const preset = (args.preset as CameraPreset) || 'isometric'
+      roomState.cameraPreset = preset
+      if (typeof args.autoOrbit === 'boolean') {
+        roomState.autoOrbit = args.autoOrbit
+        if (controls) controls.autoRotate = args.autoOrbit
+      }
 
-    screenCtx.textAlign = 'center'
-    screenCtx.font = 'bold 32px sans-serif'
-    screenCtx.fillStyle = '#ffffff'
-    screenCtx.fillText('TexTools', screenCanvas.width / 2, 110)
+      if (preset === 'isometric') {
+        targetCamPos.set(8.6, 7.0, 8.8)
+        targetCamLook.set(-0.4, 1.8, -1.0)
+      } else if (preset === 'desk') {
+        targetCamPos.set(0.0, 3.75 + roomState.deskHeight * 0.56, 2.25)
+        targetCamLook.set(-0.15, 2.2 + roomState.deskHeight * 0.56, -1.95)
+      } else if (preset === 'pc') {
+        targetCamPos.set(0.25, 2.85 + roomState.deskHeight * 0.56, 0.65)
+        targetCamLook.set(2.4, 2.4 + roomState.deskHeight * 0.56, -1.95)
+      } else if (preset === 'arcade') {
+        targetCamPos.set(-1.45, 2.55, 3.65)
+        targetCamLook.set(-3.85, 2.05, 1.3)
+      } else if (preset === 'server') {
+        targetCamPos.set(-3.55, 2.15, -1.35)
+        targetCamLook.set(-4.65, 1.25, -4.45)
+      } else if (preset === 'window') {
+        targetCamPos.set(-2.85, 3.15, -0.35)
+        targetCamLook.set(-5.86, 3.05, -1.8)
+      }
+      isCameraTransitioning = true
+      resultMessage = `Camera moved to '${preset}' (autoOrbit=${roomState.autoOrbit})`
+      break
+    }
 
-    screenCtx.font = 'bold 16px monospace'
-    screenCtx.fillStyle = '#ff1e42'
-    screenCtx.fillText('DEVELOPER BATTLESTATION 3D', screenCanvas.width / 2, 145)
+    case 'overclock_system': {
+      const enabled = Boolean(args.enabled)
+      roomState.isOverclocked = enabled
+      roomState.fanSpeedMultiplier = enabled ? 3.8 : 1.0
+      if (enabled) {
+        roomState.pcOn = true
+        roomState.currentTheme = 'crimson'
+        roomState.lightColor = '#ff1e42'
+        roomState.lightIntensity = 2.2
+        roomState.lightsOn = true
+        roomState.rgbCycle = false
+        syncLightingFromState()
+      }
+      resultMessage = `Workstation overclock ${enabled ? 'ENGAGED (MAX RPM)' : 'DISENGAGED (NOMINAL)'}`
+      break
+    }
 
-    screenCtx.font = '12px monospace'
-    screenCtx.fillStyle = '#94a3b8'
-    screenCtx.fillText('WebMCP Digital Twin • System Online', screenCanvas.width / 2, 185)
-    screenCtx.textAlign = 'start'
+    case 'control_desk_setup': {
+      if (args.posture === 'sit') roomState.deskHeight = 0.0
+      else if (args.posture === 'mid') roomState.deskHeight = 0.5
+      else if (args.posture === 'stand') roomState.deskHeight = 1.0
+      else if (typeof args.height === 'number') {
+        roomState.deskHeight = Math.min(1.0, Math.max(0.0, args.height))
+      }
+
+      if (typeof args.keyboardRgb === 'boolean') {
+        roomState.keyboardRgb = args.keyboardRgb
+        if (refs) {
+          const kbCol = args.keyboardRgb ? parseInt(roomState.lightColor.replace('#', ''), 16) : 0x0f172a
+          refs.keyboardRgbMeshes.forEach((m) => {
+            ;(m.material as THREE.MeshBasicMaterial).color.setHex(kbCol)
+          })
+        }
+      }
+      resultMessage = `Standing desk height=${deskHeightCm.value}cm, keyboardRgb=${roomState.keyboardRgb}`
+      break
+    }
+
+    case 'set_hologram_mode': {
+      const mode = (args.mode as HologramMode) || 'orbit'
+      roomState.hologramMode = mode
+      resultMessage = `Holo-Core mode -> '${mode}'`
+      break
+    }
+
+    case 'set_window_weather': {
+      const weather = (args.weather as WeatherMode) || 'cyber_rain'
+      roomState.weatherMode = weather
+      resultMessage = `City skyline weather -> '${weather}'`
+      break
+    }
+
+    case 'play_arcade_game': {
+      const game = (args.game as ArcadeGameMode) || 'invaders'
+      roomState.arcadeMode = game
+      roomState.arcadeOn = game !== 'off'
+      if (refs) refs.arcadePointLight.intensity = roomState.arcadeOn ? 2.2 : 0
+      resultMessage = `Arcade CRT running '${game}'`
+      break
+    }
+
+    case 'apply_scene_preset': {
+      const presetId = (args.preset as ScenePresetName) || 'coding'
+      if (typeof args.chairSpin === 'boolean') {
+        roomState.chairSpin = args.chairSpin
+      }
+      const preset = SCENE_PRESETS.find((p) => p.id === presetId)
+      if (preset) {
+        preset.calls.forEach((c) => executeMcpTool(c.name, c.args))
+      }
+      resultMessage = `Applied scene preset '${presetId}'`
+      break
+    }
   }
 
-  if (screenTexture) screenTexture.needsUpdate = true
+  pushRpcLog('result', name, {
+    jsonrpc: '2.0',
+    id: Date.now(),
+    result: { content: [{ type: 'text', text: resultMessage }] }
+  })
+  terminalLines.push(`[MCP] ${resultMessage}`)
+  if (terminalLines.length > 40) terminalLines.shift()
 }
 
-// --- Dynamic Arcade Screen Canvas Texture ---
-const initArcadeCanvas = () => {
-  arcadeCanvas = document.createElement('canvas')
-  arcadeCanvas.width = 256
-  arcadeCanvas.height = 256
-  arcadeCtx = arcadeCanvas.getContext('2d')
-  arcadeTexture = new THREE.CanvasTexture(arcadeCanvas)
-  arcadeTexture.generateMipmaps = false
-  arcadeTexture.minFilter = THREE.LinearFilter
+// --- Natural Language Prompt Runner ---
+const handleNaturalLanguagePrompt = () => {
+  const raw = promptInput.value.trim()
+  if (!raw) return
+  isProcessing.value = true
+
+  setTimeout(() => {
+    const calls = interpretNaturalLanguagePrompt(raw)
+    calls.forEach((c) => executeMcpTool(c.name, c.args))
+    promptInput.value = ''
+    isProcessing.value = false
+  }, 180)
 }
 
-const updateArcadeCanvas = () => {
-  if (!arcadeCtx) return
-
-  if (!roomState.arcadeOn) {
-    arcadeCtx.fillStyle = '#05070a'
-    arcadeCtx.fillRect(0, 0, 256, 256)
-    if (arcadeTexture) arcadeTexture.needsUpdate = true
-    return
-  }
-
-  // Retro arcade screen background
-  arcadeCtx.fillStyle = '#100826'
-  arcadeCtx.fillRect(0, 0, 256, 256)
-
-  // Neon Arcade Banner
-  arcadeCtx.fillStyle = '#ff007f'
-  arcadeCtx.font = 'bold 22px monospace'
-  arcadeCtx.textAlign = 'center'
-  arcadeCtx.fillText('TEX-ARCADE', 128, 44)
-
-  // Scores
-  arcadeCtx.fillStyle = '#00f0ff'
-  arcadeCtx.font = 'bold 13px monospace'
-  arcadeCtx.fillText('1UP 09420   HIGH 99990', 128, 72)
-
-  // Moving animated pixel alien
-  arcadeInvaderX += arcadeInvaderDir * 1.6
-  if (arcadeInvaderX > 170 || arcadeInvaderX < 40) arcadeInvaderDir *= -1
-
-  arcadeCtx.fillStyle = '#00ff88'
-  arcadeCtx.fillRect(arcadeInvaderX, 110, 48, 28)
-  arcadeCtx.fillStyle = '#100826'
-  arcadeCtx.fillRect(arcadeInvaderX + 8, 118, 10, 10)
-  arcadeCtx.fillRect(arcadeInvaderX + 30, 118, 10, 10)
-
-  // Blinking Insert Coin
-  if (Math.floor(Date.now() / 500) % 2 === 0) {
-    arcadeCtx.fillStyle = '#ffaa00'
-    arcadeCtx.font = 'bold 14px monospace'
-    arcadeCtx.fillText('★ INSERT COIN ★', 128, 195)
-  }
-
-  // Scanline overlay
-  arcadeCtx.fillStyle = 'rgba(0, 0, 0, 0.25)'
-  for (let y = 0; y < 256; y += 4) {
-    arcadeCtx.fillRect(0, y, 256, 2)
-  }
-
-  arcadeCtx.textAlign = 'start'
-  if (arcadeTexture) arcadeTexture.needsUpdate = true
+const setSamplePrompt = (text: string) => {
+  promptInput.value = text
+  handleNaturalLanguagePrompt()
 }
 
-// --- Three.js Procedural Room Builder ---
+// Quick Tool Tester from Tools Tab
+const invokeDefaultTool = (toolName: string) => {
+  switch (toolName) {
+    case 'set_ambient_lighting':
+      executeMcpTool(toolName, { theme: 'synthwave', intensity: 1.9, rgbCycle: true })
+      break
+    case 'power_device':
+      executeMcpTool(toolName, { target: 'desk_lamp', state: !roomState.deskLampOn })
+      break
+    case 'set_screen_mode':
+      executeMcpTool(toolName, { mode: 'stats', sideMode: 'git' })
+      break
+    case 'set_camera_view':
+      executeMcpTool(toolName, { preset: 'pc', autoOrbit: false })
+      break
+    case 'overclock_system':
+      executeMcpTool(toolName, { enabled: !roomState.isOverclocked })
+      break
+    case 'control_desk_setup':
+      executeMcpTool(toolName, { posture: roomState.deskHeight > 0.5 ? 'sit' : 'stand', keyboardRgb: true })
+      break
+    case 'set_hologram_mode':
+      executeMcpTool(toolName, { mode: roomState.hologramMode === 'helix' ? 'pulse' : 'helix' })
+      break
+    case 'set_window_weather':
+      executeMcpTool(toolName, { weather: roomState.weatherMode === 'cyber_rain' ? 'sunset_grid' : 'cyber_rain' })
+      break
+    case 'play_arcade_game':
+      executeMcpTool(toolName, { game: roomState.arcadeMode === 'invaders' ? 'snake' : 'invaders' })
+      break
+    case 'apply_scene_preset':
+      executeMcpTool(toolName, { preset: 'arcade_night' })
+      break
+  }
+}
+
+// --- Interactive 3D Object Click & Hover Raycasting ---
+const updatePointerNdc = (e: PointerEvent) => {
+  if (!renderer) return
+  const rect = (renderer.domElement as HTMLCanvasElement).getBoundingClientRect()
+  pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+  pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+}
+
+const raycastHit = (): InteractiveHit | null => {
+  if (!camera || !refs) return null
+  raycaster.setFromCamera(pointerNdc, camera)
+  const hits = raycaster.intersectObjects(refs.interactiveTargets, false)
+  const first = hits[0]
+  if (!first) return null
+  return (first.object.userData.mcpHit as InteractiveHit | undefined) ?? null
+}
+
+const onCanvasPointerDown = (e: PointerEvent) => {
+  pointerDownPos = { x: e.clientX, y: e.clientY }
+}
+
+const onCanvasPointerMove = (e: PointerEvent) => {
+  if (!renderer) return
+  updatePointerNdc(e)
+  const hit = raycastHit()
+  hoveredLabel.value = hit ? hit.label : null
+  ;(renderer.domElement as HTMLCanvasElement).style.cursor = hit ? 'pointer' : 'grab'
+}
+
+const onCanvasPointerUp = (e: PointerEvent) => {
+  const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y)
+  if (dist > 6) return // Dragging OrbitControls, not a click
+
+  updatePointerNdc(e)
+  const hit = raycastHit()
+  if (!hit) return
+
+  switch (hit.action) {
+    case 'monitor': {
+      const order: ScreenMode[] = ['matrix', 'terminal', 'stats', 'eq', 'textools', 'off']
+      const next = order[(order.indexOf(roomState.screenMode) + 1) % order.length] ?? 'matrix'
+      executeMcpTool('set_screen_mode', { mode: next })
+      break
+    }
+    case 'side_monitor': {
+      const order: SideScreenMode[] = ['code', 'logs', 'git', 'off']
+      const next = order[(order.indexOf(roomState.sideScreenMode) + 1) % order.length] ?? 'code'
+      executeMcpTool('set_screen_mode', { mode: roomState.screenMode, sideMode: next })
+      break
+    }
+    case 'pc':
+      executeMcpTool('overclock_system', { enabled: !roomState.isOverclocked })
+      break
+    case 'arcade': {
+      const order: ArcadeGameMode[] = ['invaders', 'snake', 'tetris', 'attract', 'off']
+      const next = order[(order.indexOf(roomState.arcadeMode) + 1) % order.length] ?? 'invaders'
+      executeMcpTool('play_arcade_game', { game: next })
+      break
+    }
+    case 'server_rack':
+      executeMcpTool('power_device', { target: 'server_rack', state: !roomState.serverRackOn })
+      break
+    case 'desk_lamp':
+      executeMcpTool('power_device', { target: 'desk_lamp', state: !roomState.deskLampOn })
+      break
+    case 'holo_core': {
+      const order: HologramMode[] = ['orbit', 'helix', 'pulse', 'off']
+      const next = order[(order.indexOf(roomState.hologramMode) + 1) % order.length] ?? 'orbit'
+      executeMcpTool('set_hologram_mode', { mode: next })
+      break
+    }
+    case 'window': {
+      const order: WeatherMode[] = ['cyber_rain', 'neon_night', 'sunset_grid', 'blinds_closed']
+      const next = order[(order.indexOf(roomState.weatherMode) + 1) % order.length] ?? 'cyber_rain'
+      executeMcpTool('set_window_weather', { weather: next })
+      break
+    }
+    case 'chair':
+      roomState.chairSpin = !roomState.chairSpin
+      pushRpcLog('result', 'interaction/chair', { chairSpin: roomState.chairSpin })
+      break
+  }
+}
+
+// --- Build & Mount Three.js Scene ---
 const buildScene = async () => {
   if (!canvasContainer.value) return
-
   const width = canvasContainer.value.clientWidth
   const height = canvasContainer.value.clientHeight
 
-  // 1. Scene & Subtle Linear Fog
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x0c1017)
   scene.fog = new THREE.Fog(0x0c1017, 24, 52)
 
-  // 2. Camera
   camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
   camera.position.copy(targetCamPos)
 
-  // 3. WebGPU Next-Gen Renderer (with automatic WebGL2 fallback)
+  // WebGPU Renderer (without powerPreference on Windows, PCFShadowMap for clean shadows)
   try {
     const gpuRenderer = new WebGPURenderer({ antialias: true })
     await gpuRenderer.init()
     renderer = gpuRenderer
-    const isWebGPU = Boolean(gpuRenderer.backend && 'isWebGPUBackend' in gpuRenderer.backend && gpuRenderer.backend.isWebGPUBackend)
+    const isWebGPU = Boolean(
+      gpuRenderer.backend && 'isWebGPUBackend' in gpuRenderer.backend && gpuRenderer.backend.isWebGPUBackend
+    )
     isWebGpuActive.value = isWebGPU
     gpuEngineName.value = isWebGPU ? 'WebGPU' : 'WebGL2'
   } catch (err) {
@@ -388,460 +574,146 @@ const buildScene = async () => {
 
   canvasContainer.value.appendChild(renderer.domElement)
 
-  // 4. Controls
   controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
-  controls.dampingFactor = 0.05
-  controls.maxPolarAngle = Math.PI / 2.05
-  controls.minDistance = 4
-  controls.maxDistance = 22
+  controls.dampingFactor = 0.06
+  controls.maxPolarAngle = Math.PI / 2.02
+  controls.minDistance = 1.6
+  controls.maxDistance = 24
   controls.target.copy(targetCamLook)
-
-  // --- Lighting System (Clear, High-Fidelity Illumination) ---
-  // A. Hemisphere Fill Light: Ice blue sky, deep slate ground
-  hemiLight = new THREE.HemisphereLight(0xe2e8f0, 0x1e2738, 1.3)
-  scene.add(hemiLight)
-
-  // B. Main Directional Key Light: Bright, clean shadows on desk and arcade
-  dirLight = new THREE.DirectionalLight(0xffffff, 2.2)
-  dirLight.position.set(10, 16, 10)
-  dirLight.target.position.set(0, 1.5, 0)
-  dirLight.castShadow = true
-  dirLight.shadow.mapSize.width = 2048
-  dirLight.shadow.mapSize.height = 2048
-  dirLight.shadow.bias = -0.001
-  dirLight.shadow.camera.near = 2
-  dirLight.shadow.camera.far = 40
-  dirLight.shadow.camera.left = -9
-  dirLight.shadow.camera.right = 9
-  dirLight.shadow.camera.top = 9
-  dirLight.shadow.camera.bottom = -9
-  scene.add(dirLight)
-  scene.add(dirLight.target)
-
-  // C. Soft Ambient Base Light
-  ambientLight = new THREE.AmbientLight(0xffffff, 0.45)
-  scene.add(ambientLight)
-
-  // D. Main Ceiling Point Light (Warm neutral with high lumen radius)
-  roomCeilingLight = new THREE.PointLight(0xfff0f5, 2.2, 16, 1.2)
-  roomCeilingLight.position.set(0, 4.8, 0)
-  scene.add(roomCeilingLight)
-
-  // Ceiling Light Fixture Mesh
-  const lampGeo = new THREE.CylinderGeometry(0.5, 0.7, 0.25, 16)
-  const lampMat = new THREE.MeshStandardMaterial({ color: 0x222a3a, roughness: 0.3, metalness: 0.8 })
-  const lampMesh = new THREE.Mesh(lampGeo, lampMat)
-  lampMesh.position.set(0, 4.9, 0)
-  scene.add(lampMesh)
-
-  // E. Desk LED Underglow Light
-  deskLedLight = new THREE.PointLight(0xff1e42, 1.6, 6, 1.4)
-  deskLedLight.position.set(0, 1.6, -0.6)
-  scene.add(deskLedLight)
-
-  // F. Monitor Backglow Light (Casts colored glow onto back wall)
-  monitorBackglowLight = new THREE.PointLight(0xff1e42, 2.2, 7, 1.4)
-  monitorBackglowLight.position.set(0, 2.8, -2.4)
-  scene.add(monitorBackglowLight)
-
-  // G. PC RGB Interior Light
-  pcRgbLight = new THREE.PointLight(0xff0055, 1.8, 4, 1.5)
-  pcRgbLight.position.set(2.2, 2.1, -1.6)
-  scene.add(pcRgbLight)
-
-  // H. Arcade Cabinet Spotlight
-  arcadePointLight = new THREE.PointLight(0x00f0ff, 2.4, 6, 1.4)
-  arcadePointLight.position.set(-3.6, 3.4, 0.4)
-  scene.add(arcadePointLight)
-
-  // --- Room Geometry (Floor & Isometric Walls) ---
-  // Floor
-  const floorGeo = new THREE.PlaneGeometry(12, 12)
-  const floorMat = new THREE.MeshStandardMaterial({
-    color: 0x161d2b,
-    roughness: 0.45,
-    metalness: 0.3
+  controls.addEventListener('start', () => {
+    isCameraTransitioning = false
   })
-  const floor = new THREE.Mesh(floorGeo, floorMat)
-  floor.rotation.x = -Math.PI / 2
-  floor.receiveShadow = true
-  scene.add(floor)
 
-  // Floor Grid: Crisp, high-contrast lines
-  const grid = new THREE.GridHelper(12, 16, 0xff1e42, 0x2e3d54)
-  grid.position.y = 0.005
-  scene.add(grid)
+  const dom = renderer.domElement as HTMLCanvasElement
+  dom.addEventListener('pointerdown', onCanvasPointerDown)
+  dom.addEventListener('pointermove', onCanvasPointerMove)
+  dom.addEventListener('pointerup', onCanvasPointerUp)
 
-  // Back Wall (Z = -6)
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x1c2538, roughness: 0.5, metalness: 0.2 })
-  const backWallGeo = new THREE.BoxGeometry(12, 6, 0.2)
-  const backWall = new THREE.Mesh(backWallGeo, wallMat)
-  backWall.position.set(0, 3, -6)
-  backWall.receiveShadow = true
-  scene.add(backWall)
+  textures = createDynamicTextures()
+  refs = buildPlaygroundScene(scene, textures)
+  syncLightingFromState()
 
-  // Left Wall (X = -6)
-  const leftWallGeo = new THREE.BoxGeometry(0.2, 6, 12)
-  const leftWall = new THREE.Mesh(leftWallGeo, wallMat)
-  leftWall.position.set(-6, 3, 0)
-  leftWall.receiveShadow = true
-  scene.add(leftWall)
-
-  // Wall Accent Trims & Cyber Bars
-  wallTrimMeshes = []
-  const trimMat = new THREE.MeshBasicMaterial({ color: 0xff1e42 })
-
-  const trimBack = new THREE.Mesh(new THREE.BoxGeometry(12, 0.06, 0.06), trimMat)
-  trimBack.position.set(0, 0.03, -5.9)
-  scene.add(trimBack)
-  wallTrimMeshes.push(trimBack)
-
-  const trimLeft = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 12), trimMat)
-  trimLeft.position.set(-5.9, 0.03, 0)
-  scene.add(trimLeft)
-  wallTrimMeshes.push(trimLeft)
-
-  // Mid-wall glowing neon bar
-  const wallBar = new THREE.Mesh(new THREE.BoxGeometry(10, 0.05, 0.05), trimMat)
-  wallBar.position.set(0, 3.8, -5.88)
-  scene.add(wallBar)
-  wallTrimMeshes.push(wallBar)
-
-  // --- Battlestation Desk ---
-  const deskGroup = new THREE.Group()
-
-  // Table Top
-  const deskTopGeo = new THREE.BoxGeometry(5.4, 0.12, 2.2)
-  const deskTopMat = new THREE.MeshStandardMaterial({
-    color: 0x222c3e,
-    roughness: 0.35,
-    metalness: 0.4
-  })
-  const deskTop = new THREE.Mesh(deskTopGeo, deskTopMat)
-  deskTop.position.set(0, 1.7, -1.6)
-  deskTop.castShadow = true
-  deskTop.receiveShadow = true
-  deskGroup.add(deskTop)
-
-  // Desk LED Edge Strip
-  const ledGeo = new THREE.BoxGeometry(5.42, 0.04, 0.04)
-  const ledMat = new THREE.MeshBasicMaterial({ color: 0xff1e42 })
-  deskLedMesh = new THREE.Mesh(ledGeo, ledMat)
-  deskLedMesh.position.set(0, 1.68, -0.48)
-  deskGroup.add(deskLedMesh)
-
-  // Desk Legs (Metallic Modern Frame)
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x141b29, roughness: 0.4, metalness: 0.8 })
-  const legGeo = new THREE.BoxGeometry(0.12, 1.7, 1.8)
-
-  const leftLeg = new THREE.Mesh(legGeo, legMat)
-  leftLeg.position.set(-2.4, 0.85, -1.6)
-  leftLeg.castShadow = true
-  deskGroup.add(leftLeg)
-
-  const rightLeg = new THREE.Mesh(legGeo, legMat)
-  rightLeg.position.set(2.4, 0.85, -1.6)
-  rightLeg.castShadow = true
-  deskGroup.add(rightLeg)
-
-  // Desk Mat / Mousepad
-  const padGeo = new THREE.BoxGeometry(3.6, 0.02, 1.2)
-  const padMat = new THREE.MeshStandardMaterial({ color: 0x0f1522, roughness: 0.9 })
-  const deskPad = new THREE.Mesh(padGeo, padMat)
-  deskPad.position.set(0, 1.765, -1.4)
-  deskGroup.add(deskPad)
-
-  // Mechanical Keyboard
-  const kbGeo = new THREE.BoxGeometry(1.6, 0.04, 0.55)
-  const kbMat = new THREE.MeshStandardMaterial({ color: 0x1a2335, roughness: 0.4 })
-  const kb = new THREE.Mesh(kbGeo, kbMat)
-  kb.position.set(-0.2, 1.78, -1.3)
-  kb.castShadow = true
-  deskGroup.add(kb)
-
-  // Mouse
-  const mouseGeo = new THREE.BoxGeometry(0.2, 0.04, 0.35)
-  const mouseMat = new THREE.MeshStandardMaterial({ color: 0x2a354c, roughness: 0.3 })
-  const mouse = new THREE.Mesh(mouseGeo, mouseMat)
-  mouse.position.set(1.0, 1.78, -1.3)
-  deskGroup.add(mouse)
-
-  // Ultrawide Curved Monitor
-  const monitorStandBase = new THREE.Mesh(
-    new THREE.BoxGeometry(0.8, 0.04, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0x1a2130, metalness: 0.7 })
-  )
-  monitorStandBase.position.set(0, 1.78, -2.1)
-  deskGroup.add(monitorStandBase)
-
-  const monitorArm = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.06, 0.06, 0.9),
-    new THREE.MeshStandardMaterial({ color: 0x1a2130, metalness: 0.8 })
-  )
-  monitorArm.position.set(0, 2.2, -2.1)
-  deskGroup.add(monitorArm)
-
-  // Screen Frame
-  const frameGeo = new THREE.BoxGeometry(3.4, 1.5, 0.1)
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x121724, roughness: 0.4, metalness: 0.6 })
-  const screenFrame = new THREE.Mesh(frameGeo, frameMat)
-  screenFrame.position.set(0, 2.7, -1.95)
-  screenFrame.castShadow = true
-  deskGroup.add(screenFrame)
-
-  // Display Screen Mesh (Connected to Dynamic CanvasTexture)
-  initScreenCanvas()
-  const displayGeo = new THREE.PlaneGeometry(3.28, 1.38)
-  const displayMat = new THREE.MeshBasicMaterial({ map: screenTexture })
-  const displayScreen = new THREE.Mesh(displayGeo, displayMat)
-  displayScreen.position.set(0, 2.7, -1.89)
-  deskGroup.add(displayScreen)
-
-  // --- PC Workstation Tower ---
-  const pcGroup = new THREE.Group()
-  pcGroup.position.set(2.2, 1.76, -1.6)
-
-  // Case Body (Matte Black)
-  const pcBodyGeo = new THREE.BoxGeometry(0.7, 1.3, 1.4)
-  const pcBodyMat = new THREE.MeshStandardMaterial({ color: 0x101522, roughness: 0.4, metalness: 0.8 })
-  const pcBody = new THREE.Mesh(pcBodyGeo, pcBodyMat)
-  pcBody.position.set(0, 0.65, 0)
-  pcBody.castShadow = true
-  pcGroup.add(pcBody)
-
-  // Tempered Glass Left Side Panel
-  const glassGeo = new THREE.BoxGeometry(0.02, 1.15, 1.25)
-  const glassMat = new THREE.MeshPhysicalMaterial({
-    color: 0x1e283d,
-    transparent: true,
-    opacity: 0.4,
-    roughness: 0.1,
-    transmission: 0.9,
-    thickness: 0.5
-  })
-  const glassPanel = new THREE.Mesh(glassGeo, glassMat)
-  glassPanel.position.set(-0.35, 0.65, 0)
-  pcGroup.add(glassPanel)
-
-  // Internal PC Fans (Front & Rear)
-  fanMeshes = []
-  const fanGeo = new THREE.TorusGeometry(0.14, 0.03, 8, 24)
-  const fanMat = new THREE.MeshBasicMaterial({ color: 0xff0055 })
-
-  for (let i = 0; i < 2; i++) {
-    const fan = new THREE.Mesh(fanGeo, fanMat)
-    fan.rotation.y = Math.PI / 2
-    fan.position.set(-0.15, 0.4 + i * 0.45, 0.55)
-    pcGroup.add(fan)
-    fanMeshes.push(fan)
-  }
-
-  deskGroup.add(pcGroup)
-  scene.add(deskGroup)
-
-  // --- Ergonomic Chair ---
-  const chairGroup = new THREE.Group()
-  chairGroup.position.set(0, 0, 0.4)
-
-  // Seat
-  const seatGeo = new THREE.BoxGeometry(1.4, 0.16, 1.3)
-  const chairMat = new THREE.MeshStandardMaterial({ color: 0x1a2233, roughness: 0.6 })
-  const seat = new THREE.Mesh(seatGeo, chairMat)
-  seat.position.set(0, 1.2, 0)
-  seat.castShadow = true
-  chairGroup.add(seat)
-
-  // Backrest
-  const backGeo = new THREE.BoxGeometry(1.3, 1.6, 0.15)
-  const back = new THREE.Mesh(backGeo, chairMat)
-  back.position.set(0, 1.95, 0.6)
-  back.castShadow = true
-  chairGroup.add(back)
-
-  // Chair Piston Stem
-  const stem = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.08, 1.1),
-    new THREE.MeshStandardMaterial({ color: 0x05070a, metalness: 0.9 })
-  )
-  stem.position.set(0, 0.6, 0)
-  chairGroup.add(stem)
-
-  // 5-Star Caster Base
-  for (let i = 0; i < 5; i++) {
-    const angle = (i * Math.PI * 2) / 5
-    const armGeo = new THREE.BoxGeometry(0.7, 0.06, 0.1)
-    const arm = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({ color: 0x111622 }))
-    arm.position.set(Math.cos(angle) * 0.35, 0.1, Math.sin(angle) * 0.35)
-    arm.rotation.y = -angle
-    chairGroup.add(arm)
-  }
-  scene.add(chairGroup)
-
-  // --- Retro Arcade Cabinet (Visible, Front-Facing & Well-Lit) ---
-  initArcadeCanvas()
-  const arcadeGroup = new THREE.Group()
-  arcadeGroup.position.set(-3.6, 0, 0.4)
-  arcadeGroup.rotation.y = Math.PI / 4 // 45 degrees facing towards camera and room center
-
-  // Main Cabinet Body (Retro dark violet / indigo)
-  const arcBodyGeo = new THREE.BoxGeometry(1.7, 3.6, 1.5)
-  const arcBodyMat = new THREE.MeshStandardMaterial({
-    color: 0x241d3e,
-    roughness: 0.4,
-    metalness: 0.4
-  })
-  const arcBody = new THREE.Mesh(arcBodyGeo, arcBodyMat)
-  arcBody.position.set(0, 1.8, 0)
-  arcBody.castShadow = true
-  arcBody.receiveShadow = true
-  arcadeGroup.add(arcBody)
-
-  // Side decorative neon T-molding trims
-  const arcTrimMat = new THREE.MeshBasicMaterial({ color: 0xff007f })
-  const arcTrimL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.62, 1.52), arcTrimMat)
-  arcTrimL.position.set(-0.85, 1.8, 0)
-  const arcTrimR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.62, 1.52), arcTrimMat)
-  arcTrimR.position.set(0.85, 1.8, 0)
-  arcadeGroup.add(arcTrimL, arcTrimR)
-
-  // Control Deck
-  const deckGeo = new THREE.BoxGeometry(1.6, 0.15, 0.75)
-  const deckMat = new THREE.MeshStandardMaterial({ color: 0x2b224d, roughness: 0.4 })
-  const deck = new THREE.Mesh(deckGeo, deckMat)
-  deck.position.set(0, 1.75, 0.6)
-  deck.rotation.x = 0.22
-  deck.castShadow = true
-  arcadeGroup.add(deck)
-
-  // Joysticks & Neon Action Buttons
-  const stickGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.22)
-  const stickBallGeo = new THREE.SphereGeometry(0.06)
-
-  // Player 1 (Red stick)
-  const stickP1 = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial({ color: 0x475569 }))
-  stickP1.position.set(-0.45, 1.95, 0.6)
-  const ballP1 = new THREE.Mesh(stickBallGeo, new THREE.MeshBasicMaterial({ color: 0xff1e42 }))
-  ballP1.position.set(-0.45, 2.06, 0.6)
-  arcadeGroup.add(stickP1, ballP1)
-
-  // Player 2 (Cyan stick)
-  const stickP2 = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial({ color: 0x475569 }))
-  stickP2.position.set(0.15, 1.95, 0.6)
-  const ballP2 = new THREE.Mesh(stickBallGeo, new THREE.MeshBasicMaterial({ color: 0x00f0ff }))
-  ballP2.position.set(0.15, 2.06, 0.6)
-  arcadeGroup.add(stickP2, ballP2)
-
-  // Buttons
-  const btnGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.04)
-  const colors = [0xff1e42, 0x00f0ff, 0xffaa00, 0x00ff88]
-  for (let p = 0; p < 2; p++) {
-    for (let b = 0; b < 3; b++) {
-      const btn = new THREE.Mesh(btnGeo, new THREE.MeshBasicMaterial({ color: colors[(p * 2 + b) % colors.length] }))
-      btn.position.set(-0.25 + p * 0.6 + (b % 2) * 0.12, 1.88 + Math.floor(b / 2) * 0.05, 0.52 + (b % 2) * 0.08)
-      arcadeGroup.add(btn)
-    }
-  }
-
-  // Coin Door (Lower front)
-  const coinDoor = new THREE.Mesh(
-    new THREE.BoxGeometry(0.9, 0.7, 0.05),
-    new THREE.MeshStandardMaterial({ color: 0x140e29, metalness: 0.8, roughness: 0.3 })
-  )
-  coinDoor.position.set(0, 0.8, 0.76)
-  arcadeGroup.add(coinDoor)
-
-  // Illuminated Coin Slots
-  for (let c = 0; c < 2; c++) {
-    const slot = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.08, 0.02),
-      new THREE.MeshBasicMaterial({ color: 0xff8800 })
-    )
-    slot.position.set(-0.2 + c * 0.4, 0.9, 0.79)
-    arcadeGroup.add(slot)
-  }
-
-  // Arcade CRT Screen (Connected to Dynamic Arcade Canvas)
-  const arcScreenGeo = new THREE.PlaneGeometry(1.35, 1.05)
-  const arcScreenMat = new THREE.MeshBasicMaterial({ map: arcadeTexture })
-  const arcScreen = new THREE.Mesh(arcScreenGeo, arcScreenMat)
-  arcScreen.position.set(0, 2.5, 0.68)
-  arcScreen.rotation.x = -0.18
-  arcadeGroup.add(arcScreen)
-
-  // Glowing Marquee Sign
-  const marqueeCanvas = document.createElement('canvas')
-  marqueeCanvas.width = 512
-  marqueeCanvas.height = 128
-  const mCtx = marqueeCanvas.getContext('2d')
-  if (mCtx) {
-    mCtx.fillStyle = '#160829'
-    mCtx.fillRect(0, 0, 512, 128)
-    mCtx.strokeStyle = '#00f0ff'
-    mCtx.lineWidth = 8
-    mCtx.strokeRect(8, 8, 496, 112)
-    mCtx.fillStyle = '#ff007f'
-    mCtx.font = 'bold 64px monospace'
-    mCtx.textAlign = 'center'
-    mCtx.fillText('★ ARCADE ★', 256, 88)
-  }
-  const marqueeTexture = new THREE.CanvasTexture(marqueeCanvas)
-  const marqueeGeo = new THREE.BoxGeometry(1.6, 0.45, 0.12)
-  const marqueeMat = new THREE.MeshBasicMaterial({ map: marqueeTexture })
-  const marquee = new THREE.Mesh(marqueeGeo, marqueeMat)
-  marquee.position.set(0, 3.35, 0.62)
-  arcadeGroup.add(marquee)
-
-  scene.add(arcadeGroup)
-
-  // --- Wall Props: Cyber Shelf & LED Wall Sign ---
-  const shelf = new THREE.Mesh(
-    new THREE.BoxGeometry(3.0, 0.08, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0x1f293d, roughness: 0.4 })
-  )
-  shelf.position.set(0, 4.4, -5.7)
-  scene.add(shelf)
-
-  // Neon Wall Sign: "TEXTOOLS // LAB"
-  const signBack = new THREE.Mesh(
-    new THREE.BoxGeometry(3.6, 0.7, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x0e1422, roughness: 0.9 })
-  )
-  signBack.position.set(-3.2, 4.2, -5.9)
-  scene.add(signBack)
-
-  // --- Animation Loop ---
   let lastTime = performance.now()
+  let fpsAccumulator = 0
+  let fpsFrames = 0
+  let rgbHue = 0
+  const tempColor = new THREE.Color()
 
   const animate = () => {
     animFrameId = requestAnimationFrame(animate)
 
     const now = performance.now()
-    const delta = (now - lastTime) / 1000
+    const delta = Math.min(0.1, (now - lastTime) / 1000)
     lastTime = now
 
-    // Smooth Camera Lerp
+    // FPS counter
+    fpsAccumulator += delta
+    fpsFrames++
+    if (fpsAccumulator >= 0.6) {
+      currentFps.value = Math.round(fpsFrames / fpsAccumulator)
+      fpsAccumulator = 0
+      fpsFrames = 0
+    }
+
+    // Smooth camera preset transition (yields immediately when user grabs OrbitControls)
     if (camera && controls) {
-      camera.position.lerp(targetCamPos, 0.06)
-      controls.target.lerp(targetCamLook, 0.06)
+      if (isCameraTransitioning) {
+        camera.position.lerp(targetCamPos, 0.08)
+        controls.target.lerp(targetCamLook, 0.08)
+        if (camera.position.distanceTo(targetCamPos) < 0.03 && controls.target.distanceTo(targetCamLook) < 0.03) {
+          isCameraTransitioning = false
+        }
+      }
+      controls.autoRotate = roomState.autoOrbit
       controls.update()
     }
 
-    // Spin PC Fans
-    const speed = (roomState.isOverclocked ? 18.0 : 4.0) * roomState.fanSpeedMultiplier
-    fanMeshes.forEach((fan) => {
-      fan.rotation.z += speed * delta
-    })
+    if (refs) {
+      // Standing desk smooth elevation
+      const targetDeskY = roomState.deskHeight * 0.56
+      refs.deskTopGroup.position.y += (targetDeskY - refs.deskTopGroup.position.y) * 0.1
 
-    // Pulse Lights if Overclocked
-    if (roomState.isOverclocked && pcRgbLight) {
-      const pulse = 1.0 + Math.sin(now * 0.008) * 0.5
-      pcRgbLight.intensity = pulse * 1.8
+      // Chair spin
+      if (roomState.chairSpin) {
+        refs.chairUpperGroup.rotation.y += 0.9 * delta
+      }
+
+      // Spin PC Fans
+      const fanSpeed = roomState.pcOn ? (roomState.isOverclocked ? 22.0 : 5.5) * roomState.fanSpeedMultiplier : 0
+      refs.fanMeshes.forEach((fan) => {
+        fan.rotation.z += fanSpeed * delta
+      })
+
+      // RGB Rainbow Cycle
+      if (roomState.rgbCycle && roomState.lightsOn) {
+        rgbHue = (rgbHue + delta * 0.16) % 1.0
+        tempColor.setHSL(rgbHue, 0.95, 0.55)
+        applyAccentHex(tempColor.getHex(), roomState.lightIntensity)
+      }
+
+      // Overclock PC RGB pulse
+      if (roomState.isOverclocked && roomState.pcOn) {
+        refs.pcRgbLight.intensity = (1.1 + Math.sin(now * 0.01) * 0.65) * 1.8
+      }
+
+      // Hologram AI Core animations
+      const holoOn = roomState.hologramMode !== 'off'
+      refs.holoCoreMesh.visible = holoOn
+      refs.holoOuterRing.visible = holoOn
+      refs.holoInnerRing.visible = holoOn
+      refs.holoConeMesh.visible = holoOn
+      refs.holoLight.intensity = holoOn ? 1.25 : 0
+
+      if (holoOn) {
+        if (roomState.hologramMode === 'orbit') {
+          refs.holoCoreMesh.rotation.y += 1.4 * delta
+          refs.holoCoreMesh.position.y = 0.36 + Math.sin(now * 0.003) * 0.035
+          refs.holoOuterRing.rotation.x += 1.2 * delta
+          refs.holoOuterRing.rotation.y += 0.8 * delta
+          refs.holoInnerRing.rotation.y -= 1.8 * delta
+          refs.holoInnerRing.rotation.z += 0.9 * delta
+          refs.holoCoreMesh.scale.setScalar(1)
+        } else if (roomState.hologramMode === 'helix') {
+          refs.holoCoreMesh.rotation.y += 3.6 * delta
+          refs.holoCoreMesh.rotation.x += 1.2 * delta
+          refs.holoCoreMesh.position.y = 0.36 + Math.sin(now * 0.006) * 0.07
+          refs.holoOuterRing.rotation.set(Math.PI / 2 + Math.sin(now * 0.004) * 0.4, now * 0.002, 0)
+          refs.holoInnerRing.rotation.set(Math.PI / 2 - Math.sin(now * 0.004) * 0.4, -now * 0.003, 0)
+          refs.holoCoreMesh.scale.setScalar(1.05)
+        } else if (roomState.hologramMode === 'pulse') {
+          const s = 0.9 + Math.sin(now * 0.007) * 0.25
+          refs.holoCoreMesh.scale.setScalar(s)
+          refs.holoCoreMesh.rotation.y += 2.2 * delta
+          refs.holoOuterRing.rotation.z += 2.0 * delta
+          refs.holoInnerRing.rotation.x += 2.0 * delta
+          refs.holoLight.intensity = 1.1 + Math.sin(now * 0.007) * 0.65
+        }
+      }
+
+      // Coffee mug rising steam wisps
+      refs.steamMeshes.forEach((steam, idx) => {
+        const phase = ((now * 0.0007 + idx * 0.33) % 1)
+        steam.position.y = 0.22 + phase * 0.28
+        steam.position.x = Math.sin(now * 0.003 + idx * 2) * 0.025
+        steam.scale.setScalar(0.6 + phase * 0.9)
+        ;(steam.material as THREE.MeshBasicMaterial).opacity = (1 - phase) * 0.35
+      })
+
+      // Server rack blinking telemetry LEDs
+      refs.serverLedMeshes.forEach((led, idx) => {
+        const mat = led.material as THREE.MeshBasicMaterial
+        if (!roomState.serverRackOn) {
+          mat.color.setHex(0x0f172a)
+        } else {
+          const blink = Math.sin(now * 0.008 + idx * 1.9) > -0.2
+          if (idx % 4 === 0) mat.color.setHex(0x00f0ff)
+          else mat.color.setHex(blink ? 0x10b981 : 0x064e3b)
+        }
+      })
     }
 
-    // Update dynamic screen canvas textures
-    updateScreenCanvas()
-    updateArcadeCanvas()
+    textures?.updateAll(roomState, terminalLines, now)
 
     if (renderer && scene && camera) {
       renderer.render(scene, camera)
@@ -849,345 +721,24 @@ const buildScene = async () => {
   }
 
   animate()
-
-  // Handle Resize
   window.addEventListener('resize', handleResize)
+  if (typeof ResizeObserver !== 'undefined' && canvasContainer.value) {
+    resizeObserver = new ResizeObserver(() => handleResize())
+    resizeObserver.observe(canvasContainer.value)
+  }
 }
 
 const handleResize = () => {
   if (!canvasContainer.value || !renderer || !camera) return
   const width = canvasContainer.value.clientWidth
   const height = canvasContainer.value.clientHeight
+  if (width === 0 || height === 0) return
   camera.aspect = width / height
   camera.updateProjectionMatrix()
   renderer.setSize(width, height)
 }
 
-// --- WebMCP Tool Execution Engine ---
-const executeMcpTool = (name: string, args: Record<string, unknown>) => {
-  pushRpcLog('call', name, {
-    jsonrpc: '2.0',
-    id: Date.now(),
-    method: `tools/call`,
-    params: { name, arguments: args }
-  })
-
-  let resultMessage = ''
-
-  switch (name) {
-    case 'set_ambient_lighting': {
-      const theme = (args.theme as string) || 'crimson'
-      const intensity = typeof args.intensity === 'number' ? args.intensity : 1.5
-
-      roomState.currentTheme = theme
-      roomState.lightsOn = intensity > 0.1
-
-      let hex = 0xff1e42
-      if (theme === 'crimson') hex = 0xff1e42
-      else if (theme === 'cyber') hex = 0x00f0ff
-      else if (theme === 'matrix') hex = 0x00ff66
-      else if (theme === 'night') hex = 0x3b82f6
-      else if (theme === 'day') hex = 0xffeedd
-
-      if (args.color && typeof args.color === 'string') {
-        hex = parseInt((args.color as string).replace('#', '0x'), 16) || hex
-      }
-
-      roomState.lightColor = `#${hex.toString(16).padStart(6, '0')}`
-
-      if (dirLight) {
-        dirLight.intensity = roomState.lightsOn ? (theme === 'day' ? 2.6 : 2.0) : 0.4
-      }
-      if (hemiLight) {
-        hemiLight.intensity = roomState.lightsOn ? 1.2 : 0.3
-      }
-      if (roomCeilingLight) {
-        roomCeilingLight.color.setHex(theme === 'crimson' ? 0xfff0f5 : hex)
-        roomCeilingLight.intensity = roomState.lightsOn ? intensity * 1.4 : 0.1
-      }
-      if (deskLedLight) {
-        deskLedLight.color.setHex(hex)
-        deskLedLight.intensity = roomState.lightsOn ? intensity * 1.2 : 0.1
-      }
-      if (monitorBackglowLight) {
-        monitorBackglowLight.color.setHex(hex)
-        monitorBackglowLight.intensity = roomState.lightsOn ? intensity * 1.5 : 0.2
-      }
-      if (deskLedMesh) {
-        (deskLedMesh.material as THREE.MeshBasicMaterial).color.setHex(hex)
-      }
-      wallTrimMeshes.forEach(mesh => {
-        (mesh.material as THREE.MeshBasicMaterial).color.setHex(hex)
-      })
-      if (ambientLight) {
-        ambientLight.intensity = roomState.lightsOn ? 0.45 : 0.15
-      }
-
-      resultMessage = `Ambient lighting set: theme=${theme}, intensity=${intensity.toFixed(2)}, color=${roomState.lightColor}`
-      break
-    }
-
-    case 'power_device': {
-      const target = args.target as 'pc' | 'arcade' | 'room'
-      const state = Boolean(args.state)
-
-      if (target === 'pc') {
-        roomState.pcOn = state
-        if (!state) roomState.screenMode = 'off'
-        else if (roomState.screenMode === 'off') roomState.screenMode = 'matrix'
-        if (pcRgbLight) pcRgbLight.intensity = state ? 1.8 : 0
-      } else if (target === 'arcade') {
-        roomState.arcadeOn = state
-        if (arcadePointLight) arcadePointLight.intensity = state ? 2.4 : 0
-      } else if (target === 'room') {
-        roomState.lightsOn = state
-        if (dirLight) dirLight.intensity = state ? 2.0 : 0.4
-        if (hemiLight) hemiLight.intensity = state ? 1.2 : 0.3
-        if (roomCeilingLight) roomCeilingLight.intensity = state ? 2.2 : 0.1
-        if (deskLedLight) deskLedLight.intensity = state ? 1.6 : 0.1
-        if (monitorBackglowLight) monitorBackglowLight.intensity = state ? 2.2 : 0.2
-      }
-
-      resultMessage = `Device '${target}' power changed to ${state ? 'ON' : 'OFF'}`
-      break
-    }
-
-    case 'set_screen_mode': {
-      const mode = (args.mode as 'matrix' | 'terminal' | 'textools' | 'off') || 'matrix'
-      roomState.screenMode = mode
-      if (mode !== 'off') roomState.pcOn = true
-      resultMessage = `Monitor display mode switched to '${mode}'`
-      break
-    }
-
-    case 'set_camera_view': {
-      const preset = (args.preset as 'isometric' | 'desk' | 'arcade') || 'isometric'
-      roomState.cameraPreset = preset
-
-      if (preset === 'isometric') {
-        targetCamPos.set(8.5, 7.5, 8.5)
-        targetCamLook.set(0, 1.4, 0)
-      } else if (preset === 'desk') {
-        targetCamPos.set(1.4, 2.8, 1.2)
-        targetCamLook.set(0.1, 2.3, -1.8)
-      } else if (preset === 'arcade') {
-        targetCamPos.set(-1.8, 2.6, 2.2)
-        targetCamLook.set(-3.6, 2.0, 0.4)
-      }
-      resultMessage = `Camera transition initiated towards preset: '${preset}'`
-      break
-    }
-
-    case 'overclock_system': {
-      const enabled = Boolean(args.enabled)
-      roomState.isOverclocked = enabled
-      roomState.fanSpeedMultiplier = enabled ? 3.5 : 1.0
-
-      if (enabled) {
-        executeMcpTool('set_ambient_lighting', { theme: 'crimson', intensity: 2.2 })
-        executeMcpTool('set_screen_mode', { mode: 'matrix' })
-      }
-      resultMessage = `Workstation overclocking ${enabled ? 'ENGAGED // MAX PERFORMANCE' : 'DISENGAGED // NORMAL'}`
-      break
-    }
-  }
-
-  // Push Result
-  pushRpcLog('result', name, {
-    jsonrpc: '2.0',
-    id: Date.now(),
-    result: {
-      content: [{ type: 'text', text: resultMessage }]
-    }
-  })
-
-  // Add line to terminal screen
-  terminalLines.push(`[MCP] ${resultMessage}`)
-}
-
-// --- Multi-Action Natural Language Intent Interpreter (Bilingual: EN / ES) ---
-const handleNaturalLanguagePrompt = () => {
-  const query = promptInput.value.trim().toLowerCase()
-  if (!query) return
-
-  isProcessing.value = true
-
-  setTimeout(() => {
-    let matchedAny = false
-
-    // 1. Light Control: OFF
-    const wantsLightsOff =
-      query.includes('turn off light') ||
-      query.includes('lights off') ||
-      query.includes('light off') ||
-      query.includes('switch off light') ||
-      query.includes('dark') ||
-      query.includes('apaga la luz') ||
-      query.includes('apagar la luz') ||
-      query.includes('apaga las luces') ||
-      query.includes('apagar las luces') ||
-      query.includes('apaga luz') ||
-      query.includes('apagar luz') ||
-      query.includes('sin luz') ||
-      query.includes('noche') ||
-      query.includes('night')
-
-    // 2. Light Control: ON
-    const wantsLightsOn =
-      !wantsLightsOff &&
-      (query.includes('turn on light') ||
-        query.includes('lights on') ||
-        query.includes('light on') ||
-        query.includes('switch on light') ||
-        query.includes('prende la luz') ||
-        query.includes('prender la luz') ||
-        query.includes('prende las luces') ||
-        query.includes('prender las luces') ||
-        query.includes('enciende la luz') ||
-        query.includes('encender la luz') ||
-        query.includes('enciende las luces') ||
-        query.includes('encender las luces') ||
-        query.includes('day'))
-
-    if (wantsLightsOff) {
-      executeMcpTool('set_ambient_lighting', { theme: 'night', intensity: 0.15 })
-      matchedAny = true
-    } else if (wantsLightsOn) {
-      executeMcpTool('set_ambient_lighting', { theme: 'crimson', intensity: 2.0 })
-      matchedAny = true
-    }
-
-    // 3. Screen / PC: OFF
-    const wantsScreenOff =
-      query.includes('turn off screen') ||
-      query.includes('screen off') ||
-      query.includes('display off') ||
-      query.includes('turn off monitor') ||
-      query.includes('monitor off') ||
-      query.includes('turn off pc') ||
-      query.includes('power off pc') ||
-      query.includes('pc off') ||
-      query.includes('shutdown') ||
-      query.includes('apaga la pantalla') ||
-      query.includes('apagar la pantalla') ||
-      query.includes('apaga pantalla') ||
-      query.includes('apagar pantalla') ||
-      query.includes('apaga el monitor') ||
-      query.includes('apagar el monitor') ||
-      query.includes('apaga el pc') ||
-      query.includes('apagar el pc') ||
-      query.includes('apaga pc') ||
-      query.includes('apagar pc') ||
-      query.includes('apaga el computador') ||
-      query.includes('apagar el computador') ||
-      query.includes('apaga la computadora') ||
-      query.includes('apagar la computadora')
-
-    // 4. Screen / PC: ON
-    const wantsScreenOn =
-      !wantsScreenOff &&
-      (query.includes('turn on screen') ||
-        query.includes('screen on') ||
-        query.includes('turn on pc') ||
-        query.includes('power on pc') ||
-        query.includes('boot pc') ||
-        query.includes('start pc') ||
-        query.includes('pc on') ||
-        query.includes('prende la pantalla') ||
-        query.includes('prender la pantalla') ||
-        query.includes('prende pantalla') ||
-        query.includes('prender pantalla') ||
-        query.includes('enciende la pantalla') ||
-        query.includes('encender la pantalla') ||
-        query.includes('prende el pc') ||
-        query.includes('prender el pc') ||
-        query.includes('prende pc') ||
-        query.includes('prender pc') ||
-        query.includes('enciende el pc') ||
-        query.includes('encender el pc') ||
-        query.includes('prende el computador') ||
-        query.includes('prender el computador') ||
-        query.includes('iniciar pc'))
-
-    if (wantsScreenOff) {
-      executeMcpTool('power_device', { target: 'pc', state: false })
-      executeMcpTool('set_screen_mode', { mode: 'off' })
-      matchedAny = true
-    } else if (wantsScreenOn) {
-      executeMcpTool('power_device', { target: 'pc', state: true })
-      executeMcpTool('set_screen_mode', { mode: 'matrix' })
-      matchedAny = true
-    }
-
-    // 5. Screen Modes (if screen is not turned off)
-    if (!wantsScreenOff) {
-      if (query.includes('matrix') || query.includes('rain') || query.includes('lluvia')) {
-        executeMcpTool('set_screen_mode', { mode: 'matrix' })
-        matchedAny = true
-      } else if (query.includes('terminal') || query.includes('console') || query.includes('log') || query.includes('consola')) {
-        executeMcpTool('set_screen_mode', { mode: 'terminal' })
-        matchedAny = true
-      } else if (query.includes('logo') || query.includes('textools')) {
-        executeMcpTool('set_screen_mode', { mode: 'textools' })
-        matchedAny = true
-      }
-    }
-
-    // 6. Color Themes (if lights weren't explicitly turned off)
-    if (!wantsLightsOff) {
-      if (query.includes('crimson') || query.includes('red') || query.includes('rojo') || query.includes('rojas') || query.includes('carmesi')) {
-        executeMcpTool('set_ambient_lighting', { theme: 'crimson', color: '#ff1e42', intensity: 2.0 })
-        matchedAny = true
-      } else if (query.includes('cyan') || query.includes('cyber') || query.includes('blue') || query.includes('azul') || query.includes('celeste')) {
-        executeMcpTool('set_ambient_lighting', { theme: 'cyber', color: '#00f0ff', intensity: 2.0 })
-        matchedAny = true
-      } else if (query.includes('green') || query.includes('verde')) {
-        executeMcpTool('set_ambient_lighting', { theme: 'matrix', color: '#00ff66', intensity: 1.8 })
-        matchedAny = true
-      }
-    }
-
-    // 7. Arcade Cabinet
-    if (query.includes('arcade') || query.includes('maquinita') || query.includes('fichines')) {
-      executeMcpTool('set_camera_view', { preset: 'arcade' })
-      executeMcpTool('power_device', { target: 'arcade', state: true })
-      matchedAny = true
-    }
-
-    // 8. Camera Views (if not already moved by arcade)
-    if (!query.includes('arcade')) {
-      if (query.includes('desk') || query.includes('monitor') || query.includes('workstation') || query.includes('escritorio')) {
-        executeMcpTool('set_camera_view', { preset: 'desk' })
-        matchedAny = true
-      } else if (query.includes('room') || query.includes('isometric') || query.includes('overview') || query.includes('reset') || query.includes('general') || query.includes('habitacion') || query.includes('cuarto')) {
-        executeMcpTool('set_camera_view', { preset: 'isometric' })
-        matchedAny = true
-      }
-    }
-
-    // 9. Overclock
-    if (query.includes('overclock') || query.includes('turbo') || query.includes('boost') || query.includes('sobrecarga') || query.includes('sobrecargar')) {
-      executeMcpTool('overclock_system', { enabled: true })
-      matchedAny = true
-    }
-
-    // Fallback if nothing matched
-    if (!matchedAny) {
-      executeMcpTool('set_ambient_lighting', { theme: 'cyber', intensity: 2.0 })
-    }
-
-    promptInput.value = ''
-    isProcessing.value = false
-  }, 250)
-}
-
-// Quick Sample Prompts
-const setSamplePrompt = (text: string) => {
-  promptInput.value = text
-  handleNaturalLanguagePrompt()
-}
-
-// --- Optional Local WebSocket Relay (Option B) ---
+// --- WebSocket Bridge ---
 const toggleWsConnection = () => {
   if (wsStatus.value === 'connected') {
     wsClient?.close()
@@ -1203,15 +754,17 @@ const toggleWsConnection = () => {
 
     wsClient.onopen = () => {
       wsStatus.value = 'connected'
-      terminalLines.push(`[WS] Connected to Local Bridge: ${wsUrl.value}`)
-      pushRpcLog('result', 'bridge/connect', { status: 'connected', url: wsUrl.value })
+      terminalLines.push(`[WS] Connected to Bridge: ${wsUrl.value}`)
+      pushRpcLog('result', 'bridge/connect', { status: 'connected', tools: MCP_TOOLS.map((t) => t.name) })
     }
 
     wsClient.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data)
-        if (payload.method === 'tools/call') {
-          executeMcpTool(payload.params.name, payload.params.arguments)
+        if (payload.method === 'tools/list') {
+          wsClient?.send(JSON.stringify({ jsonrpc: '2.0', id: payload.id, result: { tools: MCP_TOOLS } }))
+        } else if (payload.method === 'tools/call') {
+          executeMcpTool(payload.params.name, payload.params.arguments || {})
         }
       } catch (err) {
         console.error('Error parsing WS message', err)
@@ -1220,7 +773,7 @@ const toggleWsConnection = () => {
 
     wsClient.onerror = () => {
       wsStatus.value = 'disconnected'
-      terminalLines.push('[WS] Connection failed. Is relay-bridge running on localhost?')
+      terminalLines.push('[WS] Bridge unavailable at ' + wsUrl.value)
       pushRpcLog('error', 'bridge/error', { message: 'Local relay not detected at ' + wsUrl.value })
     }
 
@@ -1232,17 +785,34 @@ const toggleWsConnection = () => {
   }
 }
 
+const copyRpcLog = (data: unknown) => {
+  navigator.clipboard?.writeText(JSON.stringify(data, null, 2))
+}
+
 onMounted(async () => {
   await buildScene()
-  terminalLines.push(`[OK] 3D Battlestation Scene Mounted (${gpuEngineName.value})`)
-  pushRpcLog('result', 'system/init', { status: 'ready', engine: gpuEngineName.value, tools_available: MCP_TOOLS.length })
+  terminalLines.push(`[OK] 3D Battlestation Mounted (${gpuEngineName.value})`)
+  pushRpcLog('result', 'system/init', {
+    status: 'ready',
+    engine: gpuEngineName.value,
+    tools_available: MCP_TOOLS.length
+  })
 })
 
 onUnmounted(() => {
   if (animFrameId) cancelAnimationFrame(animFrameId)
   window.removeEventListener('resize', handleResize)
+  resizeObserver?.disconnect()
+  if (renderer?.domElement) {
+    const dom = renderer.domElement as HTMLCanvasElement
+    dom.removeEventListener('pointerdown', onCanvasPointerDown)
+    dom.removeEventListener('pointermove', onCanvasPointerMove)
+    dom.removeEventListener('pointerup', onCanvasPointerUp)
+  }
   if (wsClient) wsClient.close()
-  if (renderer) renderer.dispose()
+  controls?.dispose()
+  textures?.dispose()
+  renderer?.dispose()
 })
 </script>
 
@@ -1256,35 +826,36 @@ onUnmounted(() => {
           WEBMCP 3D LAB
         </div>
         <span class="gpu-badge" :class="{ webgpu: isWebGpuActive }">
-          ⚡ {{ gpuEngineName.toUpperCase() }}
+          ⚡ {{ gpuEngineName.toUpperCase() }} • {{ currentFps }} FPS
         </span>
         <h2 class="playground-title">MCP Playground</h2>
         <span class="theme-chip" :style="{ borderColor: roomState.lightColor, color: roomState.lightColor }">
-          {{ roomState.currentTheme.toUpperCase() }} MODE
+          {{ roomState.currentTheme.toUpperCase() }}
+        </span>
+        <span class="telemetry-chip">
+          {{ activeDevicesCount }}/7 ONLINE • {{ deskHeightCm }}cm
         </span>
       </div>
 
       <div class="topbar-right">
-        <!-- Local Bridge Status Pill -->
-        <button 
+        <button
           class="bridge-pill"
           :class="wsStatus"
+          title="Configure Local MCP Agent WebSocket Bridge"
           @click="isBridgeModalOpen = true"
-          title="Configure Local MCP Agent Connection (Option B)"
         >
           <span class="bridge-indicator"></span>
           <span>Bridge: {{ wsStatus === 'connected' ? 'Connected' : 'Standalone' }}</span>
         </button>
 
-        <!-- Inspector Drawer Toggle -->
-        <button 
-          class="btn-icon" 
-          :class="{ active: isInspectorOpen }" 
-          @click="isInspectorOpen = !isInspectorOpen"
+        <button
+          class="studio-toggle-btn"
+          :class="{ active: isInspectorOpen }"
           title="Toggle MCP Protocol Inspector"
+          @click="isInspectorOpen = !isInspectorOpen"
         >
-          <span>📜</span>
-          <span class="btn-label">MCP Protocol</span>
+          <span>🎛️</span>
+          <span class="btn-label">Studio Controls</span>
         </button>
       </div>
     </header>
@@ -1295,186 +866,378 @@ onUnmounted(() => {
       <div ref="canvasContainer" class="canvas-viewport">
         <!-- Floating Camera Presets HUD -->
         <div class="camera-hud">
-          <button 
-            class="cam-btn" 
+          <button
+            class="cam-btn"
             :class="{ active: roomState.cameraPreset === 'isometric' }"
-            @click="executeMcpTool('set_camera_view', { preset: 'isometric' })"
+            @click="executeMcpTool('set_camera_view', { preset: 'isometric', autoOrbit: false })"
           >
-            📐 Room View
+            📐 Room
           </button>
-          <button 
-            class="cam-btn" 
+          <button
+            class="cam-btn"
             :class="{ active: roomState.cameraPreset === 'desk' }"
-            @click="executeMcpTool('set_camera_view', { preset: 'desk' })"
+            @click="executeMcpTool('set_camera_view', { preset: 'desk', autoOrbit: false })"
           >
-            🖥️ Desk Focus
+            🖥️ Desk
           </button>
-          <button 
-            class="cam-btn" 
+          <button
+            class="cam-btn"
+            :class="{ active: roomState.cameraPreset === 'pc' }"
+            @click="executeMcpTool('set_camera_view', { preset: 'pc', autoOrbit: false })"
+          >
+            ⚡ PC Rig
+          </button>
+          <button
+            class="cam-btn"
             :class="{ active: roomState.cameraPreset === 'arcade' }"
-            @click="executeMcpTool('set_camera_view', { preset: 'arcade' })"
+            @click="executeMcpTool('set_camera_view', { preset: 'arcade', autoOrbit: false })"
           >
-            🕹️ Arcade Focus
+            🕹️ Arcade
           </button>
+          <button
+            class="cam-btn"
+            :class="{ active: roomState.cameraPreset === 'server' }"
+            @click="executeMcpTool('set_camera_view', { preset: 'server', autoOrbit: false })"
+          >
+            🗄️ Server
+          </button>
+          <button
+            class="cam-btn"
+            :class="{ active: roomState.cameraPreset === 'window' }"
+            @click="executeMcpTool('set_camera_view', { preset: 'window', autoOrbit: false })"
+          >
+            🌃 City
+          </button>
+          <button
+            class="cam-btn orbit-btn"
+            :class="{ active: roomState.autoOrbit }"
+            title="Toggle 360° Auto-Orbit"
+            @click="executeMcpTool('set_camera_view', { preset: roomState.cameraPreset, autoOrbit: !roomState.autoOrbit })"
+          >
+            🔄 Orbit
+          </button>
+        </div>
+
+        <!-- Hover Interactive Object Tooltip -->
+        <div v-if="hoveredLabel" class="interact-pill">
+          <span>🖱️ {{ hoveredLabel }}</span>
         </div>
 
         <!-- Floating Prompt Bar (Agent Interface) -->
         <div class="prompt-hud">
           <div class="prompt-bar">
             <span class="prompt-icon">🤖</span>
-            <input 
-              v-model="promptInput" 
-              type="text" 
-              placeholder="Ask agent: 'turn off lights', 'cyber mode', 'power on pc', 'matrix rain', 'overclock'..."
+            <input
+              v-model="promptInput"
+              type="text"
+              placeholder="Ask agent: 'standing desk & stats', 'synthwave rainbow', 'snake on arcade', 'overclock pc'..."
               :disabled="isProcessing"
               @keydown.enter="handleNaturalLanguagePrompt"
             />
-            <button 
-              class="prompt-send-btn" 
+            <button
+              class="prompt-send-btn"
               :disabled="isProcessing || !promptInput.trim()"
               @click="handleNaturalLanguagePrompt"
             >
-              <span>{{ isProcessing ? 'Processing...' : 'Execute Tool' }}</span>
+              <span>{{ isProcessing ? 'Running...' : 'Execute' }}</span>
               <span>⚡</span>
             </button>
           </div>
 
-          <!-- Quick Suggestion Pills (100% English) -->
           <div class="suggestion-pills">
-            <button class="pill" @click="setSamplePrompt('crimson theme lights')">🔴 Crimson Theme</button>
-            <button class="pill" @click="setSamplePrompt('cyber cyan lighting')">🔷 Cyber Cyan</button>
-            <button class="pill" @click="setSamplePrompt('matrix rain mode')">🟢 Matrix Rain</button>
-            <button class="pill" @click="setSamplePrompt('view terminal log')">💻 Terminal Log</button>
-            <button class="pill" @click="setSamplePrompt('turn off room lights')">🌙 Night Mood</button>
-            <button class="pill" @click="setSamplePrompt('overclock workstation')">🔥 Overclock PC</button>
+            <button class="pill" @click="setSamplePrompt('modo coding')">💻 Deep Coding</button>
+            <button class="pill" @click="setSamplePrompt('rainbow party mode')">🌈 RGB Cycle</button>
+            <button class="pill" @click="setSamplePrompt('stand up & stats')">🧍 Stand + Telemetry</button>
+            <button class="pill" @click="setSamplePrompt('snake on arcade')">🐍 Arcade Snake</button>
+            <button class="pill" @click="setSamplePrompt('server rack')">🗄️ Inspect Server</button>
+            <button class="pill" @click="setSamplePrompt('cyber rain & helix holo')">🌧️ Rain + Helix</button>
+            <button class="pill" @click="setSamplePrompt('overclock pc')">🔥 Overclock</button>
           </div>
         </div>
       </div>
 
-      <!-- Side Inspector Panel (MCP Tools, JSON-RPC Stream, Controls) -->
+      <!-- Side Inspector Panel -->
       <aside v-if="isInspectorOpen" class="inspector-sidebar">
-        <!-- Inspector Tabs -->
         <div class="inspector-tabs">
-          <button 
-            :class="{ active: activeTab === 'hud' }" 
-            @click="activeTab = 'hud'"
-          >
+          <button :class="{ active: activeTab === 'hud' }" @click="activeTab = 'hud'">
             🎮 Controls
           </button>
-          <button 
-            :class="{ active: activeTab === 'tools' }" 
-            @click="activeTab = 'tools'"
-          >
+          <button :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'">
             🛠️ Tools ({{ MCP_TOOLS.length }})
           </button>
-          <button 
-            :class="{ active: activeTab === 'logs' }" 
-            @click="activeTab = 'logs'"
-          >
-            ⚡ RPC Logs ({{ rpcLogs.length }})
+          <button :class="{ active: activeTab === 'logs' }" @click="activeTab = 'logs'">
+            ⚡ RPC ({{ rpcLogs.length }})
           </button>
         </div>
 
-        <!-- Tab 1: Quick Action Controls -->
+        <!-- Tab 1: Studio Controls -->
         <div v-if="activeTab === 'hud'" class="tab-content hud-panel">
+          <!-- Scene Presets -->
           <div class="control-group">
-            <label class="group-label">Ambient Lighting</label>
-            <div class="color-palette">
-              <button 
-                class="palette-btn crimson" 
-                :class="{ active: roomState.currentTheme === 'crimson' }"
-                @click="executeMcpTool('set_ambient_lighting', { theme: 'crimson', color: '#ff1e42' })"
-                title="Crimson"
-              ></button>
-              <button 
-                class="palette-btn cyber" 
-                :class="{ active: roomState.currentTheme === 'cyber' }"
-                @click="executeMcpTool('set_ambient_lighting', { theme: 'cyber', color: '#00f0ff' })"
-                title="Cyber Cyan"
-              ></button>
-              <button 
-                class="palette-btn matrix" 
-                :class="{ active: roomState.currentTheme === 'matrix' }"
-                @click="executeMcpTool('set_ambient_lighting', { theme: 'matrix', color: '#00ff66' })"
-                title="Matrix Green"
-              ></button>
-              <button 
-                class="palette-btn night" 
-                :class="{ active: roomState.currentTheme === 'night' }"
-                @click="executeMcpTool('set_ambient_lighting', { theme: 'night', intensity: 0.15 })"
-                title="Night Mood"
-              ></button>
+            <label class="group-label">Scene Presets</label>
+            <div class="presets-grid">
+              <button
+                v-for="preset in SCENE_PRESETS"
+                :key="preset.id"
+                class="preset-chip"
+                @click="executeMcpTool('apply_scene_preset', { preset: preset.id })"
+              >
+                <span>{{ preset.icon }}</span>
+                <span>{{ preset.label }}</span>
+              </button>
             </div>
-            <button 
-              class="action-btn toggle-btn" 
-              :class="{ on: roomState.lightsOn }"
-              @click="executeMcpTool('power_device', { target: 'room', state: !roomState.lightsOn })"
-            >
-              <span>{{ roomState.lightsOn ? '💡 Turn Lights OFF' : '💡 Turn Lights ON' }}</span>
-            </button>
           </div>
 
+          <!-- Ambient Lighting -->
           <div class="control-group">
-            <label class="group-label">Workstation PC & Display</label>
+            <div class="group-header-row">
+              <label class="group-label">Ambient Lighting</label>
+              <span class="group-val">{{ Math.round(roomState.lightIntensity * 100) }}%</span>
+            </div>
+            <div class="color-palette">
+              <button
+                v-for="(cfg, key) in THEME_CONFIGS"
+                :key="key"
+                class="palette-btn"
+                :class="{ active: roomState.currentTheme === key }"
+                :style="{ background: cfg.css }"
+                :title="cfg.label"
+                @click="executeMcpTool('set_ambient_lighting', { theme: key, intensity: key === 'night' ? 0.25 : 1.8, rgbCycle: false })"
+              ></button>
+              <input
+                type="color"
+                class="color-picker-mini"
+                :value="roomState.lightColor"
+                title="Custom Hex Accent Color"
+                @input="executeMcpTool('set_ambient_lighting', { theme: roomState.currentTheme, color: ($event.target as HTMLInputElement).value, rgbCycle: false })"
+              />
+            </div>
+
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              :value="roomState.lightIntensity"
+              class="cyber-range"
+              @input="executeMcpTool('set_ambient_lighting', { theme: roomState.currentTheme, intensity: Number(($event.target as HTMLInputElement).value) })"
+            />
+
             <div class="btn-grid">
-              <button 
+              <button
                 class="action-btn"
-                :class="{ active: roomState.screenMode === 'matrix' }"
-                @click="executeMcpTool('set_screen_mode', { mode: 'matrix' })"
+                :class="{ active: roomState.lightsOn }"
+                @click="executeMcpTool('power_device', { target: 'room', state: !roomState.lightsOn })"
               >
-                🟢 Matrix Rain
+                💡 Lights: {{ roomState.lightsOn ? 'ON' : 'OFF' }}
               </button>
-              <button 
+              <button
                 class="action-btn"
-                :class="{ active: roomState.screenMode === 'terminal' }"
-                @click="executeMcpTool('set_screen_mode', { mode: 'terminal' })"
+                :class="{ active: roomState.rgbCycle }"
+                @click="executeMcpTool('set_ambient_lighting', { theme: roomState.currentTheme, rgbCycle: !roomState.rgbCycle })"
               >
-                💻 Terminal
+                🌈 RGB Cycle: {{ roomState.rgbCycle ? 'ON' : 'OFF' }}
               </button>
-              <button 
+            </div>
+          </div>
+
+          <!-- Standing Desk & Hardware -->
+          <div class="control-group">
+            <div class="group-header-row">
+              <label class="group-label">Motorized Standing Desk</label>
+              <span class="group-val">{{ deskHeightCm }} cm</span>
+            </div>
+            <div class="btn-three-grid">
+              <button
                 class="action-btn"
-                :class="{ active: roomState.screenMode === 'textools' }"
-                @click="executeMcpTool('set_screen_mode', { mode: 'textools' })"
+                :class="{ active: roomState.deskHeight < 0.25 }"
+                @click="executeMcpTool('control_desk_setup', { posture: 'sit' })"
               >
-                💎 TexTools
+                🪑 Sit
               </button>
-              <button 
+              <button
                 class="action-btn"
-                :class="{ active: roomState.screenMode === 'off' }"
-                @click="executeMcpTool('set_screen_mode', { mode: 'off' })"
+                :class="{ active: roomState.deskHeight >= 0.25 && roomState.deskHeight <= 0.75 }"
+                @click="executeMcpTool('control_desk_setup', { posture: 'mid' })"
               >
-                ⚫ Screen Off
+                ⚖️ Mid
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.deskHeight > 0.75 }"
+                @click="executeMcpTool('control_desk_setup', { posture: 'stand' })"
+              >
+                🧍 Stand
+              </button>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              :value="roomState.deskHeight"
+              class="cyber-range"
+              @input="executeMcpTool('control_desk_setup', { height: Number(($event.target as HTMLInputElement).value) })"
+            />
+            <div class="btn-grid">
+              <button
+                class="action-btn"
+                :class="{ active: roomState.keyboardRgb }"
+                @click="executeMcpTool('control_desk_setup', { keyboardRgb: !roomState.keyboardRgb })"
+              >
+                ⌨️ Key RGB: {{ roomState.keyboardRgb ? 'ON' : 'OFF' }}
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.chairSpin }"
+                @click="roomState.chairSpin = !roomState.chairSpin"
+              >
+                💺 Chair Spin: {{ roomState.chairSpin ? 'ON' : 'OFF' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Primary & Secondary Displays -->
+          <div class="control-group">
+            <label class="group-label">Curved Ultrawide Display</label>
+            <div class="btn-three-grid">
+              <button
+                v-for="m in (['matrix', 'terminal', 'stats', 'eq', 'textools', 'off'] as ScreenMode[])"
+                :key="m"
+                class="action-btn"
+                :class="{ active: roomState.screenMode === m }"
+                @click="executeMcpTool('set_screen_mode', { mode: m })"
+              >
+                {{ m.toUpperCase() }}
               </button>
             </div>
 
-            <button 
+            <label class="group-label sub-label">Vertical Coding Monitor</label>
+            <div class="btn-four-grid">
+              <button
+                v-for="sm in (['code', 'logs', 'git', 'off'] as SideScreenMode[])"
+                :key="sm"
+                class="action-btn"
+                :class="{ active: roomState.sideScreenMode === sm }"
+                @click="executeMcpTool('set_screen_mode', { mode: roomState.screenMode, sideMode: sm })"
+              >
+                {{ sm.toUpperCase() }}
+              </button>
+            </div>
+
+            <button
               class="action-btn oc-btn"
               :class="{ overclocked: roomState.isOverclocked }"
               @click="executeMcpTool('overclock_system', { enabled: !roomState.isOverclocked })"
             >
-              <span>⚡ {{ roomState.isOverclocked ? 'DISENGAGE OVERCLOCK' : 'OVERCLOCK WORKSTATION' }}</span>
+              ⚡ {{ roomState.isOverclocked ? 'DISENGAGE OVERCLOCK' : 'OVERCLOCK WORKSTATION' }}
             </button>
           </div>
 
+          <!-- Holo-Core & City Window -->
           <div class="control-group">
-            <label class="group-label">Arcade Cabinet</label>
-            <button 
-              class="action-btn"
-              :class="{ on: roomState.arcadeOn }"
-              @click="executeMcpTool('power_device', { target: 'arcade', state: !roomState.arcadeOn })"
-            >
-              <span>🕹️ Arcade Power: {{ roomState.arcadeOn ? 'ONLINE' : 'STANDBY' }}</span>
-            </button>
+            <label class="group-label">Holo-Core AI Emitter</label>
+            <div class="btn-four-grid">
+              <button
+                v-for="hm in (['orbit', 'helix', 'pulse', 'off'] as HologramMode[])"
+                :key="hm"
+                class="action-btn"
+                :class="{ active: roomState.hologramMode === hm }"
+                @click="executeMcpTool('set_hologram_mode', { mode: hm })"
+              >
+                {{ hm.toUpperCase() }}
+              </button>
+            </div>
+
+            <label class="group-label sub-label">City Skyline Window</label>
+            <div class="btn-grid">
+              <button
+                class="action-btn"
+                :class="{ active: roomState.weatherMode === 'cyber_rain' }"
+                @click="executeMcpTool('set_window_weather', { weather: 'cyber_rain' })"
+              >
+                🌧️ Cyber Rain
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.weatherMode === 'neon_night' }"
+                @click="executeMcpTool('set_window_weather', { weather: 'neon_night' })"
+              >
+                🌃 Neon Night
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.weatherMode === 'sunset_grid' }"
+                @click="executeMcpTool('set_window_weather', { weather: 'sunset_grid' })"
+              >
+                🌆 Synth Sunset
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.weatherMode === 'blinds_closed' }"
+                @click="executeMcpTool('set_window_weather', { weather: 'blinds_closed' })"
+              >
+                🪟 Blinds Shut
+              </button>
+            </div>
+          </div>
+
+          <!-- Room Devices & Arcade -->
+          <div class="control-group">
+            <label class="group-label">Room Hardware & Arcade CRT</label>
+            <div class="btn-grid">
+              <button
+                class="action-btn"
+                :class="{ active: roomState.deskLampOn }"
+                @click="executeMcpTool('power_device', { target: 'desk_lamp', state: !roomState.deskLampOn })"
+              >
+                🛋️ Lamp: {{ roomState.deskLampOn ? 'ON' : 'OFF' }}
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.serverRackOn }"
+                @click="executeMcpTool('power_device', { target: 'server_rack', state: !roomState.serverRackOn })"
+              >
+                🗄️ Rack: {{ roomState.serverRackOn ? 'ONLINE' : 'OFF' }}
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.speakersOn }"
+                @click="executeMcpTool('power_device', { target: 'speakers', state: !roomState.speakersOn })"
+              >
+                🔊 Audio: {{ roomState.speakersOn ? 'ON' : 'MUTE' }}
+              </button>
+              <button
+                class="action-btn"
+                :class="{ active: roomState.pcOn }"
+                @click="executeMcpTool('power_device', { target: 'pc', state: !roomState.pcOn })"
+              >
+                🖥️ PC: {{ roomState.pcOn ? 'ON' : 'OFF' }}
+              </button>
+            </div>
+
+            <label class="group-label sub-label">Arcade Cartridge</label>
+            <div class="btn-four-grid">
+              <button
+                v-for="ag in (['invaders', 'snake', 'tetris', 'off'] as ArcadeGameMode[])"
+                :key="ag"
+                class="action-btn"
+                :class="{ active: roomState.arcadeMode === ag }"
+                @click="executeMcpTool('play_arcade_game', { game: ag })"
+              >
+                {{ ag.toUpperCase() }}
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Tab 2: MCP Tools Schema List -->
         <div v-else-if="activeTab === 'tools'" class="tab-content tools-panel">
-          <p class="tab-desc">Available WebMCP tool specifications registered in this session:</p>
+          <p class="tab-desc">Registered WebMCP JSON Schema tools ({{ MCP_TOOLS.length }} active):</p>
           <div v-for="tool in MCP_TOOLS" :key="tool.name" class="tool-card">
             <div class="tool-header">
               <span class="tool-name">{{ tool.name }}</span>
-              <span class="tool-badge">TOOL</span>
+              <button class="tool-run-btn" @click="invokeDefaultTool(tool.name)">▶ Test</button>
             </div>
             <p class="tool-desc">{{ tool.description }}</p>
             <div class="tool-params">
@@ -1490,12 +1253,12 @@ onUnmounted(() => {
         <!-- Tab 3: JSON-RPC Live Log Stream -->
         <div v-else-if="activeTab === 'logs'" class="tab-content logs-panel">
           <div class="logs-header">
-            <span class="logs-count">{{ rpcLogs.length }} events recorded</span>
+            <span class="logs-count">{{ rpcLogs.length }} JSON-RPC events</span>
             <button class="clear-btn" @click="rpcLogs = []">Clear</button>
           </div>
 
           <div v-if="rpcLogs.length === 0" class="empty-logs">
-            No JSON-RPC calls logged yet. Run a prompt or action above!
+            No JSON-RPC calls logged yet. Interact with the 3D scene or run a prompt!
           </div>
 
           <div v-for="log in rpcLogs" :key="log.id" class="log-entry" :class="log.direction">
@@ -1503,6 +1266,7 @@ onUnmounted(() => {
               <span class="log-dir">{{ log.direction.toUpperCase() }}</span>
               <span class="log-method">{{ log.method }}</span>
               <span class="log-time">{{ log.timestamp }}</span>
+              <button class="copy-rpc-btn" title="Copy JSON" @click="copyRpcLog(log.data)">📋</button>
             </div>
             <pre class="log-json"><code>{{ JSON.stringify(log.data, null, 2) }}</code></pre>
           </div>
@@ -1510,28 +1274,24 @@ onUnmounted(() => {
       </aside>
     </div>
 
-    <!-- Option B Local Bridge Modal -->
+    <!-- Local WebSocket Bridge Modal -->
     <div v-if="isBridgeModalOpen" class="bridge-modal-backdrop" @click.self="isBridgeModalOpen = false">
       <div class="bridge-modal">
         <div class="modal-header">
-          <h3>🔗 Local Agent Bridge (Option B)</h3>
+          <h3>🔗 Local Agent WebSocket Bridge</h3>
           <button class="close-btn" @click="isBridgeModalOpen = false">&times;</button>
         </div>
 
         <div class="modal-body">
           <p class="modal-desc">
-            Connect your local AI agent (Claude Desktop, Antigravity, or custom Python script) directly to this 3D viewport over a local WebSocket.
+            Connect an external MCP client or AI agent directly to this 3D Digital Twin over a local WebSocket relay. Supports <code>tools/list</code> and <code>tools/call</code> for all {{ MCP_TOOLS.length }} tools.
           </p>
 
           <div class="input-row">
             <label>WebSocket Relay Endpoint:</label>
             <div class="ws-input-group">
               <input v-model="wsUrl" type="text" placeholder="ws://localhost:8765" />
-              <button 
-                class="btn-connect" 
-                :class="wsStatus"
-                @click="toggleWsConnection"
-              >
+              <button class="btn-connect" :class="wsStatus" @click="toggleWsConnection">
                 {{ wsStatus === 'connected' ? 'Disconnect' : 'Connect' }}
               </button>
             </div>
@@ -1541,13 +1301,10 @@ onUnmounted(() => {
             <div class="snippet-header">
               <span>Quick Node.js Bridge (bridge.js)</span>
             </div>
-            <pre><code>// npm install ws @modelcontextprotocol/sdk
-import { WebSocketServer } from 'ws';
+            <pre><code>import { WebSocketServer } from 'ws';
 const wss = new WebSocketServer({ port: 8765 });
-console.log('WebMCP Bridge running on ws://localhost:8765');
 wss.on('connection', (ws) => {
   console.log('TexTools 3D Room Connected!');
-  // Forward MCP stdio messages from your agent to the browser:
   process.stdin.on('data', (data) => ws.send(data));
 });</code></pre>
           </div>
@@ -1562,7 +1319,7 @@ wss.on('connection', (ws) => {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 120px);
-  min-height: 600px;
+  min-height: 620px;
   background: #090c12;
   border-radius: 12px;
   border: 1px solid rgba(255, 30, 66, 0.2);
@@ -1575,15 +1332,19 @@ wss.on('connection', (ws) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: 10px 16px;
   background: #0f1420;
   border-bottom: 1px solid #1c2638;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .badge-tag {
@@ -1594,10 +1355,11 @@ wss.on('connection', (ws) => {
   background: rgba(255, 30, 66, 0.15);
   border: 1px solid rgba(255, 30, 66, 0.4);
   border-radius: 4px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #ff1e42;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .gpu-badge {
@@ -1606,12 +1368,13 @@ wss.on('connection', (ws) => {
   gap: 4px;
   padding: 3px 8px;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
   background: rgba(0, 240, 255, 0.12);
   border: 1px solid rgba(0, 240, 255, 0.35);
   color: #00f0ff;
+  white-space: nowrap;
 }
 
 .gpu-badge.webgpu {
@@ -1635,36 +1398,52 @@ wss.on('connection', (ws) => {
 
 .playground-title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #f8fafc;
+  white-space: nowrap;
 }
 
 .theme-chip {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   padding: 2px 8px;
   border: 1px solid;
   border-radius: 999px;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.telemetry-chip {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: #94a3b8;
+  background: #141b2b;
+  border: 1px solid #23304a;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .bridge-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 7px;
+  padding: 5px 11px;
   background: #141b2b;
   border: 1px solid #23304a;
   border-radius: 20px;
   color: #cbd5e1;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -1674,10 +1453,11 @@ wss.on('connection', (ws) => {
 }
 
 .bridge-indicator {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #64748b;
+  flex-shrink: 0;
 }
 
 .bridge-pill.connected .bridge-indicator {
@@ -1689,21 +1469,23 @@ wss.on('connection', (ws) => {
   background: #f59e0b;
 }
 
-.btn-icon {
-  display: flex;
+.studio-toggle-btn {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 5px 11px;
   background: #141b2b;
   border: 1px solid #23304a;
   border-radius: 6px;
   color: #cbd5e1;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.btn-icon:hover, .btn-icon.active {
+.studio-toggle-btn:hover, .studio-toggle-btn.active {
   background: rgba(255, 30, 66, 0.15);
   border-color: #ff1e42;
   color: #ffffff;
@@ -1717,7 +1499,6 @@ wss.on('connection', (ws) => {
   overflow: hidden;
 }
 
-/* 3D Canvas Viewport */
 .canvas-viewport {
   flex: 1;
   position: relative;
@@ -1725,7 +1506,7 @@ wss.on('connection', (ws) => {
   min-width: 0;
 }
 
-.canvas-viewport canvas {
+.canvas-viewport :deep(canvas) {
   display: block;
   width: 100% !important;
   height: 100% !important;
@@ -1734,42 +1515,69 @@ wss.on('connection', (ws) => {
 /* Camera HUD */
 .camera-hud {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 12px;
+  left: 12px;
+  right: 12px;
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
   z-index: 10;
+  pointer-events: none;
 }
 
 .cam-btn {
-  padding: 6px 12px;
-  background: rgba(15, 20, 32, 0.85);
+  pointer-events: auto;
+  padding: 5px 10px;
+  background: rgba(15, 20, 32, 0.86);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   color: #94a3b8;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .cam-btn:hover, .cam-btn.active {
-  background: rgba(255, 30, 66, 0.2);
+  background: rgba(255, 30, 66, 0.22);
   border-color: #ff1e42;
   color: #ffffff;
+}
+
+.orbit-btn.active {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: #00f0ff;
+  color: #00f0ff;
+}
+
+.interact-pill {
+  position: absolute;
+  top: 52px;
+  left: 12px;
+  z-index: 10;
+  padding: 5px 12px;
+  background: rgba(9, 13, 22, 0.92);
+  border: 1px solid #00f0ff;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #00f0ff;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 240, 255, 0.2);
 }
 
 /* Prompt HUD */
 .prompt-hud {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
-  right: 16px;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 10;
-  max-width: 760px;
+  max-width: 820px;
   margin: 0 auto;
 }
 
@@ -1777,7 +1585,7 @@ wss.on('connection', (ws) => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 7px 12px;
   background: rgba(15, 20, 32, 0.92);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 30, 66, 0.4);
@@ -1786,7 +1594,7 @@ wss.on('connection', (ws) => {
 }
 
 .prompt-icon {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
 }
 
 .prompt-bar input {
@@ -1795,7 +1603,7 @@ wss.on('connection', (ws) => {
   border: none;
   outline: none;
   color: #f8fafc;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
 }
 
 .prompt-bar input::placeholder {
@@ -1805,16 +1613,15 @@ wss.on('connection', (ws) => {
 .prompt-send-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
+  gap: 5px;
+  padding: 6px 12px;
   background: #ff1e42;
   border: none;
   border-radius: 6px;
   color: #ffffff;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
 }
 
 .prompt-send-btn:disabled {
@@ -1824,36 +1631,37 @@ wss.on('connection', (ws) => {
 
 .suggestion-pills {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
 .pill {
   padding: 4px 10px;
-  background: rgba(15, 20, 32, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 20, 32, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   color: #cbd5e1;
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .pill:hover {
-  background: rgba(255, 30, 66, 0.15);
+  background: rgba(255, 30, 66, 0.16);
   border-color: #ff1e42;
   color: #ffffff;
 }
 
 /* Inspector Sidebar */
 .inspector-sidebar {
-  width: 360px;
+  width: 325px;
+  flex-shrink: 0;
   background: #0f1420;
   border-left: 1px solid #1c2638;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .inspector-tabs {
@@ -1863,12 +1671,12 @@ wss.on('connection', (ws) => {
 
 .inspector-tabs button {
   flex: 1;
-  padding: 10px;
+  padding: 10px 6px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: #64748b;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1882,17 +1690,27 @@ wss.on('connection', (ws) => {
 .tab-content {
   flex: 1;
   overflow-y: auto;
-  padding: 14px;
+  overflow-x: hidden;
+  padding: 14px 16px 16px 14px;
 }
 
 /* HUD Panel Controls */
 .control-group {
   margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.group-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .group-label {
   display: block;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
@@ -1900,19 +1718,62 @@ wss.on('connection', (ws) => {
   margin-bottom: 8px;
 }
 
+.group-header-row .group-label {
+  margin-bottom: 0;
+}
+
+.sub-label {
+  margin-top: 10px;
+}
+
+.group-val {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #00f0ff;
+  font-weight: 700;
+}
+
+.presets-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  background: #141b2b;
+  border: 1px solid #23304a;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.preset-chip:hover {
+  border-color: #ff1e42;
+  background: rgba(255, 30, 66, 0.12);
+}
+
 .color-palette {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
 .palette-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.15s;
 }
 
 .palette-btn:hover {
@@ -1921,27 +1782,41 @@ wss.on('connection', (ws) => {
 
 .palette-btn.active {
   border-color: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
 }
 
-.palette-btn.crimson { background: #ff1e42; }
-.palette-btn.cyber { background: #00f0ff; }
-.palette-btn.matrix { background: #00ff66; }
-.palette-btn.night { background: #1e293b; }
+.color-picker-mini {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cyber-range {
+  width: 100%;
+  margin-bottom: 10px;
+  accent-color: #ff1e42;
+  cursor: pointer;
+}
 
 .action-btn {
   width: 100%;
-  padding: 8px;
+  padding: 7px 6px;
   background: #141b2b;
   border: 1px solid #23304a;
   border-radius: 6px;
   color: #cbd5e1;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .action-btn:hover, .action-btn.active {
-  background: rgba(255, 30, 66, 0.15);
+  background: rgba(255, 30, 66, 0.16);
   border-color: #ff1e42;
   color: #ffffff;
 }
@@ -1950,14 +1825,27 @@ wss.on('connection', (ws) => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+
+.btn-three-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.btn-four-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
   margin-bottom: 8px;
 }
 
 .oc-btn {
-  margin-top: 6px;
+  margin-top: 4px;
   background: rgba(255, 30, 66, 0.1);
-  border-color: rgba(255, 30, 66, 0.3);
-  color: #ff1e42;
+  border-color: rgba(255, 30, 66, 0.35);
+  color: #ff4d6d;
   font-weight: 700;
 }
 
@@ -1968,6 +1856,12 @@ wss.on('connection', (ws) => {
 }
 
 /* Tools Panel */
+.tab-desc {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
 .tool-card {
   background: #141b2b;
   border: 1px solid #23304a;
@@ -1984,37 +1878,45 @@ wss.on('connection', (ws) => {
 }
 
 .tool-name {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
   color: #f8fafc;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
-.tool-badge {
-  font-size: 0.65rem;
+.tool-run-btn {
+  font-size: 0.66rem;
   background: rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.35);
   color: #00f0ff;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   font-weight: 700;
+  cursor: pointer;
+}
+
+.tool-run-btn:hover {
+  background: #00f0ff;
+  color: #090c12;
 }
 
 .tool-desc {
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   color: #94a3b8;
   margin: 4px 0 8px;
 }
 
 .param-row {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 0.68rem;
   margin-bottom: 2px;
 }
 
 .param-name {
-  color: #ff1e42;
+  color: #ff4d6d;
 }
 
 .param-type {
@@ -2065,53 +1967,42 @@ wss.on('connection', (ws) => {
   margin-bottom: 8px;
 }
 
-.log-entry.call {
-  border-left-color: #00f0ff;
-}
-
-.log-entry.result {
-  border-left-color: #10b981;
-}
-
-.log-entry.error {
-  border-left-color: #ef4444;
-}
+.log-entry.call { border-left-color: #00f0ff; }
+.log-entry.result { border-left-color: #10b981; }
+.log-entry.error { border-left-color: #ef4444; }
 
 .log-meta {
   display: flex;
-  gap: 8px;
-  font-size: 0.68rem;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.66rem;
   margin-bottom: 4px;
 }
 
-.log-dir {
-  font-weight: 700;
-  color: #00f0ff;
+.log-dir { font-weight: 700; color: #00f0ff; }
+.log-entry.result .log-dir { color: #10b981; }
+.log-method { color: #e2e8f0; font-family: var(--font-mono); }
+.log-time { margin-left: auto; color: #64748b; }
+
+.copy-rpc-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  opacity: 0.7;
 }
 
-.log-entry.result .log-dir {
-  color: #10b981;
-}
-
-.log-method {
-  color: #e2e8f0;
-  font-family: monospace;
-}
-
-.log-time {
-  margin-left: auto;
-  color: #64748b;
-}
+.copy-rpc-btn:hover { opacity: 1; }
 
 .log-json {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   color: #cbd5e1;
-  max-height: 120px;
+  max-height: 110px;
   overflow-y: auto;
 }
 
-/* Option B Modal */
+/* Bridge Modal */
 .bridge-modal-backdrop {
   position: absolute;
   inset: 0;
@@ -2143,7 +2034,7 @@ wss.on('connection', (ws) => {
 .modal-header h3 {
   margin: 0;
   color: #ffffff;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .close-btn {
@@ -2155,7 +2046,7 @@ wss.on('connection', (ws) => {
 }
 
 .modal-desc {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: #94a3b8;
   line-height: 1.5;
   margin-bottom: 16px;
@@ -2167,7 +2058,7 @@ wss.on('connection', (ws) => {
 
 .input-row label {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: #cbd5e1;
   margin-bottom: 6px;
 }
@@ -2221,14 +2112,26 @@ wss.on('connection', (ws) => {
   overflow-x: auto;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
+  .mcp-playground-container {
+    height: auto;
+    min-height: 760px;
+  }
+
+  .playground-body {
+    flex-direction: column;
+  }
+
+  .canvas-viewport {
+    min-height: 460px;
+    height: 480px;
+  }
+
   .inspector-sidebar {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    z-index: 20;
-    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.7);
+    width: 100%;
+    max-height: 420px;
+    border-left: none;
+    border-top: 1px solid #1c2638;
   }
 }
 </style>
